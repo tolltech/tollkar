@@ -91,8 +91,26 @@
                     </StackPanel>
 
                     <Button Grid.Row="3"
-                            Classes="nav"
-                            Content="⚙   Настройки" />
+                            Classes="nav">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Grid Width="18" Height="18">
+                                <Path Width="18"
+                                      Height="18"
+                                      Data="M9,0 L9,3 M9,15 L9,18 M0,9 L3,9 M15,9 L18,9 M2.64,2.64 L4.76,4.76 M13.24,13.24 L15.36,15.36 M15.36,2.64 L13.24,4.76 M4.76,13.24 L2.64,15.36"
+                                      Stroke="#BEC1CC"
+                                      StrokeThickness="1.7"
+                                      StrokeLineCap="Round" />
+                                <Ellipse Width="7"
+                                         Height="7"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Stroke="#BEC1CC"
+                                         StrokeThickness="1.7" />
+                            </Grid>
+                            <TextBlock Text="Настройки"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Border>
 
