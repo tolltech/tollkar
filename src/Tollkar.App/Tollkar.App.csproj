@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
+    <OutputType Condition="$([MSBuild]::IsOSPlatform('Windows'))">WinExe</OutputType>
     <TargetFrameworks>net10.0</TargetFrameworks>
     <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('OSX'))">net10.0-macos</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -9,7 +10,6 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-macos'">
-    <OutputType>Exe</OutputType>
     <ApplicationId>com.tolltech.tollkar</ApplicationId>
     <ApplicationTitle>Tollkar</ApplicationTitle>
     <SupportedOSPlatformVersion>14.0</SupportedOSPlatformVersion>
