@@ -219,20 +219,32 @@
                             Orientation="Horizontal"
                             Spacing="12">
                     <Button Classes="icon"
-                            Content="|◀"
                             IsEnabled="False"
                             AutomationProperties.Name="Предыдущая песня"
-                            ToolTip.Tip="Предыдущая песня" />
+                            ToolTip.Tip="Предыдущая песня">
+                        <PathIcon Width="18"
+                                  Height="18"
+                                  Foreground="White"
+                                  Data="M4,3 L6,3 L6,15 L4,15 Z M15,3 L7,9 L15,15 Z" />
+                    </Button>
                     <Button Classes="icon"
-                            Content="▶"
                             IsEnabled="False"
                             AutomationProperties.Name="Воспроизвести"
-                            ToolTip.Tip="Воспроизвести" />
+                            ToolTip.Tip="Воспроизвести">
+                        <PathIcon Width="18"
+                                  Height="18"
+                                  Foreground="White"
+                                  Data="M5,3 L16,9 L5,15 Z" />
+                    </Button>
                     <Button Classes="icon"
-                            Content="▶|"
                             IsEnabled="False"
                             AutomationProperties.Name="Следующая песня"
-                            ToolTip.Tip="Следующая песня" />
+                            ToolTip.Tip="Следующая песня">
+                        <PathIcon Width="18"
+                                  Height="18"
+                                  Foreground="White"
+                                  Data="M3,3 L11,9 L3,15 Z M12,3 L14,3 L14,15 L12,15 Z" />
+                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2"
@@ -240,10 +252,11 @@
                             VerticalAlignment="Center"
                             Orientation="Horizontal"
                             Spacing="10">
-                    <TextBlock Text="🔊"
-                               VerticalAlignment="Center"
-                               FontSize="15"
-                               Foreground="#858997" />
+                    <PathIcon Width="18"
+                              Height="18"
+                              VerticalAlignment="Center"
+                              Foreground="#A6AAB6"
+                              Data="M3,9 L3,15 L7,15 L12,20 L12,4 L7,9 Z M14,8 C15.5,8.7 16.5,10.2 16.5,12 C16.5,13.8 15.5,15.3 14,16 Z M14,3.2 L14,5.3 C16.9,6.2 19,8.8 19,12 C19,15.2 16.9,17.8 14,18.7 L14,20.8 C18,19.9 21,16.3 21,12 C21,7.7 18,4.1 14,3.2 Z" />
                     <Slider Width="120"
                             Minimum="0"
                             Maximum="100"
