@@ -11,9 +11,6 @@ using Tollkar.Application.Playback;
 using Tollkar.Application.Playback.Models;
 using Tollkar.Core.Songs;
 using Tollkar.Infrastructure;
-#if MACOS
-using Tollkar.App.Platforms.MacOS;
-#endif
 
 namespace Tollkar.App;
 
@@ -22,9 +19,7 @@ public partial class MainWindow : Window
     private readonly ILibraryService _library;
     private readonly IPlaybackQueueService _playbackQueue;
     private readonly IQueuePlayerService? _queuePlayer = null;
-#if MACOS
-    private readonly MacVideoHost? _videoHost;
-#endif
+    private readonly string? _playbackUnavailableMessage;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly TaskCompletionSource _initialization = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
@@ -39,17 +34,22 @@ public partial class MainWindow : Window
         _library = library ?? throw new ArgumentNullException(nameof(library));
         _playbackQueue = playbackQueue ?? throw new ArgumentNullException(nameof(playbackQueue));
         InitializeComponent();
-#if MACOS
-        _videoHost = new MacVideoHost();
-        VideoSurfaceHost.Content = _videoHost;
-        var player = TollkarInfrastructure.CreatePlayerService(
-            _library,
-            [new AvFoundationPlaybackProvider(_videoHost)]);
-        _queuePlayer = TollkarInfrastructure.CreateQueuePlayerService(_playbackQueue, player);
-        _queuePlayer.SnapshotChanged += Player_OnSnapshotChanged;
-        _queuePlayer.QueueChanged += QueuePlayer_OnQueueChanged;
-        _queuePlayer.PlaybackFailed += QueuePlayer_OnPlaybackFailed;
-#endif
+        var playbackProvider = OperatingSystem.IsMacOS()
+            ? TollkarInfrastructure.TryCreateFfplayPlaybackProvider()
+            : null;
+        if (playbackProvider is not null)
+        {
+            var player = TollkarInfrastructure.CreatePlayerService(_library, [playbackProvider]);
+            _queuePlayer = TollkarInfrastructure.CreateQueuePlayerService(_playbackQueue, player);
+            _queuePlayer.SnapshotChanged += Player_OnSnapshotChanged;
+            _queuePlayer.QueueChanged += QueuePlayer_OnQueueChanged;
+            _queuePlayer.PlaybackFailed += QueuePlayer_OnPlaybackFailed;
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            _playbackUnavailableMessage =
+                "Для воспроизведения установите ffplay: brew install ffmpeg";
+        }
         SearchBox.TextChanged += SearchBox_OnTextChanged;
         Opened += OnOpened;
         Closed += OnClosed;
@@ -68,6 +68,10 @@ public partial class MainWindow : Window
             await UpdateLibrarySummaryAsync(lifetimeToken);
             await ReloadSongsAsync(SearchBox.Text, lifetimeToken);
             await ReloadQueueAsync(lifetimeToken);
+            if (_playbackUnavailableMessage is not null)
+            {
+                LibraryStatusText.Text = _playbackUnavailableMessage;
+            }
             _initialization.TrySetResult();
         }
         catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)
@@ -360,13 +364,6 @@ public partial class MainWindow : Window
         {
             await _queuePlayer.DisposeAsync();
         }
-#if MACOS
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            VideoSurfaceHost.Content = null;
-            _videoHost?.Dispose();
-        });
-#endif
     }
 
     private void UpdatePlayerUi(PlayerSnapshot snapshot)
@@ -389,7 +386,7 @@ public partial class MainWindow : Window
         PlayPauseIcon.Data = Geometry.Parse(snapshot.State == Tollkar.Core.Playback.PlaybackState.Playing
             ? "M5,3 L8,3 L8,15 L5,15 Z M11,3 L14,3 L14,15 L11,15 Z"
             : "M5,3 L16,9 L5,15 Z");
-        PlayerVideoPanel.IsVisible = hasSong;
+        PlayerVideoPanel.IsVisible = false;
         UpdateLibraryContentVisibility();
     }
 
