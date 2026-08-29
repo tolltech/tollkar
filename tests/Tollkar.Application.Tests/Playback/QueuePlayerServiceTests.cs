@@ -9,6 +9,52 @@ namespace Tollkar.Application.Tests.Playback;
 public sealed class QueuePlayerServiceTests
 {
     [Fact]
+    public async Task TogglePauseStartsFirstItemWhenNothingIsPlaying()
+    {
+        var first = CreateQueueItem(0);
+        var queue = new StubQueue([first]);
+        var player = new StubPlayer();
+        await using var service = new QueuePlayerService(queue, player);
+
+        await service.TogglePauseAsync();
+
+        Assert.Equal([first.SongId], player.PlayedSongIds);
+        Assert.Equal([first.Id], queue.Items.Select(item => item.Id));
+    }
+
+    [Fact]
+    public async Task TogglePauseDelegatesWhenSongIsAlreadyActive()
+    {
+        var first = CreateQueueItem(0);
+        var queue = new StubQueue([first]);
+        var player = new StubPlayer();
+        await using var service = new QueuePlayerService(queue, player);
+        await service.PlayQueueItemAsync(first.Id);
+
+        await service.TogglePauseAsync();
+
+        Assert.Equal(1, player.TogglePauseCount);
+        Assert.Equal([first.SongId], player.PlayedSongIds);
+        Assert.Empty(queue.RemovedItemIds);
+    }
+
+    [Fact]
+    public async Task ImmediatelyEndedSongAdvancesAfterStartupCompletes()
+    {
+        var first = CreateQueueItem(0);
+        var second = CreateQueueItem(1);
+        var queue = new StubQueue([first, second]);
+        var player = new StubPlayer { EndFirstPlayImmediately = true };
+        await using var service = new QueuePlayerService(queue, player);
+
+        await service.TogglePauseAsync();
+        await player.SecondSongPlayed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal([first.Id], queue.RemovedItemIds);
+        Assert.Equal([first.SongId, second.SongId], player.PlayedSongIds);
+    }
+
+    [Fact]
     public async Task NextStartsFirstItemWhenNothingIsPlaying()
     {
         var first = CreateQueueItem(0);
@@ -142,6 +188,10 @@ public sealed class QueuePlayerServiceTests
 
         public bool PauseSecondPlay { get; init; }
 
+        public bool EndFirstPlayImmediately { get; init; }
+
+        public int TogglePauseCount { get; private set; }
+
         public event EventHandler? SnapshotChanged;
 
         public async ValueTask PlayAsync(Guid songId, CancellationToken cancellationToken = default)
@@ -155,13 +205,19 @@ public sealed class QueuePlayerServiceTests
                     await AllowSecondPlay.Task.WaitAsync(cancellationToken);
                 }
             }
-            Snapshot = new(songId, "Song", "Artist", PlaybackState.Playing, TimeSpan.Zero);
+            var state = EndFirstPlayImmediately && PlayedSongIds.Count == 1
+                ? PlaybackState.Ended
+                : PlaybackState.Playing;
+            Snapshot = new(songId, "Song", "Artist", state, TimeSpan.Zero);
             SnapshotChanged?.Invoke(this, EventArgs.Empty);
             if (PlayedSongIds.Count == 2) SecondSongPlayed.TrySetResult();
         }
 
-        public ValueTask TogglePauseAsync(CancellationToken cancellationToken = default) =>
-            ValueTask.CompletedTask;
+        public ValueTask TogglePauseAsync(CancellationToken cancellationToken = default)
+        {
+            TogglePauseCount++;
+            return ValueTask.CompletedTask;
+        }
 
         public ValueTask StopAsync(CancellationToken cancellationToken = default)
         {

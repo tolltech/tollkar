@@ -46,8 +46,7 @@ internal sealed class QueuePlayerService : IQueuePlayerService
                 throw new KeyNotFoundException($"Queue item '{queueItemId}' was not found.");
             _activeQueueItemId = item.Id;
             await _player.PlayAsync(item.SongId, cancellationToken);
-            Interlocked.Exchange(ref _endedTransitionPending, 0);
-            Interlocked.Exchange(ref _failureReported, 0);
+            CompleteSongStartup();
         }
         catch
         {
@@ -60,8 +59,25 @@ internal sealed class QueuePlayerService : IQueuePlayerService
         }
     }
 
-    public ValueTask TogglePauseAsync(CancellationToken cancellationToken = default) =>
-        _player.TogglePauseAsync(cancellationToken);
+    public async ValueTask TogglePauseAsync(CancellationToken cancellationToken = default)
+    {
+        await _transportLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_player.Snapshot.SongId is null)
+            {
+                Interlocked.Exchange(ref _endedTransitionPending, 1);
+                await MoveNextCoreAsync(cancellationToken);
+                return;
+            }
+
+            await _player.TogglePauseAsync(cancellationToken);
+        }
+        finally
+        {
+            _transportLock.Release();
+        }
+    }
 
     public async ValueTask NextAsync(CancellationToken cancellationToken = default)
     {
@@ -146,7 +162,17 @@ internal sealed class QueuePlayerService : IQueuePlayerService
         var next = remaining[nextIndex];
         _activeQueueItemId = next.Id;
         await _player.PlayAsync(next.SongId, cancellationToken);
+        CompleteSongStartup();
+    }
+
+    private void CompleteSongStartup()
+    {
         Interlocked.Exchange(ref _endedTransitionPending, 0);
         Interlocked.Exchange(ref _failureReported, 0);
+        if (_player.Snapshot.State == PlaybackState.Ended &&
+            Interlocked.CompareExchange(ref _endedTransitionPending, 1, 0) == 0)
+        {
+            _ = MoveNextAfterEndAsync();
+        }
     }
 }

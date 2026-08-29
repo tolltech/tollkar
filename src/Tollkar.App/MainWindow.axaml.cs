@@ -279,6 +279,8 @@ public partial class MainWindow : Window
         QueueList.IsVisible = items.Count > 0;
         EmptyQueuePanel.IsVisible = items.Count == 0;
         QueueCountText.Text = items.Count.ToString();
+        PlayPauseButton.IsEnabled = _queuePlayer is not null &&
+            (items.Count > 0 || _queuePlayer.Snapshot.SongId is not null);
         NextButton.IsEnabled = _queuePlayer is not null && items.Count > 0;
     }
 
