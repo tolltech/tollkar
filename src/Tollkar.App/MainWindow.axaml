@@ -189,15 +189,28 @@
                                         <StackPanel Grid.Column="2"
                                                     VerticalAlignment="Center"
                                                     HorizontalAlignment="Right"
-                                                    Spacing="2">
-                                            <TextBlock Text="{Binding Format}"
-                                                       HorizontalAlignment="Right"
-                                                       FontSize="12"
-                                                       Foreground="#9CA0AD" />
-                                            <TextBlock Text="{Binding Duration}"
-                                                       HorizontalAlignment="Right"
-                                                       FontSize="12"
-                                                       Foreground="#6F7380" />
+                                                    Orientation="Horizontal"
+                                                    Spacing="10">
+                                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="{Binding Format}"
+                                                           HorizontalAlignment="Right"
+                                                           FontSize="12"
+                                                           Foreground="#9CA0AD" />
+                                                <TextBlock Text="{Binding Duration}"
+                                                           HorizontalAlignment="Right"
+                                                           FontSize="12"
+                                                           Foreground="#6F7380" />
+                                            </StackPanel>
+                                            <Button Width="32"
+                                                    Height="32"
+                                                    Padding="0"
+                                                    CornerRadius="16"
+                                                    Background="#237C5CFC"
+                                                    Foreground="White"
+                                                    Content="＋"
+                                                    CommandParameter="{Binding Id}"
+                                                    Click="AddSongToQueue_OnClick"
+                                                    ToolTip.Tip="Добавить в очередь" />
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -260,13 +273,69 @@
                                 Padding="9,4"
                                 CornerRadius="10"
                                 Background="#18FFFFFF">
-                            <TextBlock Text="0"
+                            <TextBlock x:Name="QueueCountText"
+                                       Text="0"
                                        FontSize="12"
                                        Foreground="#A6AAB6" />
                         </Border>
                     </Grid>
 
-                    <StackPanel Grid.Row="1"
+                    <ListBox x:Name="QueueList"
+                             Grid.Row="1"
+                             Margin="0,18,0,0"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             IsVisible="False">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="10"
+                                        Margin="0,0,0,7"
+                                        CornerRadius="8"
+                                        Background="#181A22">
+                                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock Text="{Binding Title}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="White" />
+                                            <TextBlock Text="{Binding Artist}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       FontSize="12"
+                                                       Foreground="#9CA0AD" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1"
+                                                    Orientation="Horizontal"
+                                                    Spacing="3">
+                                            <Button Padding="6,3"
+                                                    Content="↑"
+                                                    CommandParameter="{Binding Id}"
+                                                    Click="MoveQueueItemUp_OnClick"
+                                                    ToolTip.Tip="Переместить выше" />
+                                            <Button Padding="6,3"
+                                                    Content="↓"
+                                                    CommandParameter="{Binding Id}"
+                                                    Click="MoveQueueItemDown_OnClick"
+                                                    ToolTip.Tip="Переместить ниже" />
+                                            <Button Padding="6,3"
+                                                    Content="×"
+                                                    CommandParameter="{Binding Id}"
+                                                    Click="RemoveQueueItem_OnClick"
+                                                    ToolTip.Tip="Удалить из очереди" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel x:Name="EmptyQueuePanel"
+                                Grid.Row="1"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Spacing="10">

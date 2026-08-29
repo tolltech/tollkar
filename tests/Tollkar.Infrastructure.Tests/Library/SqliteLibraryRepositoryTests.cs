@@ -100,6 +100,37 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
             await repository.InitializeAsync());
     }
 
+    [Fact]
+    public async Task VersionTwoDatabaseMigratesWithoutLosingSongs()
+    {
+        var databasePath = Path.Combine(_directory, "version-two.db");
+        var repository = new SqliteLibraryRepository(databasePath);
+        await repository.InitializeAsync();
+        var root = await repository.AddRootAsync(Path.Combine(_directory, "karaoke"));
+        await repository.UpsertSongAsync(
+            root.Id,
+            new FileCandidate(Path.Combine(_directory, "song.mp4"), 1, DateTimeOffset.UnixEpoch),
+            "video",
+            1,
+            new SongMetadata("Song", "Artist", null, SongCapabilities.Video));
+        await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE PlaybackQueue; PRAGMA user_version = 2;";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await new SqliteLibraryRepository(databasePath).InitializeAsync();
+
+        Assert.Single(await repository.SearchSongsAsync(new()));
+        await using var migrated = new SqliteConnection($"Data Source={databasePath}");
+        await migrated.OpenAsync();
+        await using var tableCommand = migrated.CreateCommand();
+        tableCommand.CommandText = "SELECT COUNT(*) FROM PlaybackQueue;";
+        Assert.Equal(0L, await tableCommand.ExecuteScalarAsync());
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))

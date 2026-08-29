@@ -7,7 +7,8 @@ namespace Tollkar.Infrastructure.Library;
 
 internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRepository
 {
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
+    private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     private readonly string _connectionString = new SqliteConnectionStringBuilder
     {
@@ -16,6 +17,19 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
     }.ToString();
 
     public async ValueTask InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await _initializationLock.WaitAsync(cancellationToken);
+        try
+        {
+            await InitializeCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _initializationLock.Release();
+        }
+    }
+
+    private async ValueTask InitializeCoreAsync(CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(new SqliteConnectionStringBuilder(_connectionString).DataSource);
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
@@ -61,6 +75,25 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
             await using var command = connection.CreateCommand();
             command.Transaction = (SqliteTransaction)transaction;
             command.CommandText = "ALTER TABLE Files ADD COLUMN LastSeenScanId TEXT NULL; PRAGMA user_version = 2;";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            version = 2;
+        }
+
+        if (version == 2)
+        {
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqliteTransaction)transaction;
+            command.CommandText = """
+                CREATE TABLE PlaybackQueue (
+                    Id TEXT PRIMARY KEY,
+                    SongId TEXT NOT NULL,
+                    Position INTEGER NOT NULL,
+                    FOREIGN KEY (SongId) REFERENCES Songs(Id) ON DELETE CASCADE);
+                CREATE INDEX IX_PlaybackQueue_Position ON PlaybackQueue(Position);
+                PRAGMA user_version = 3;
+                """;
             await command.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }

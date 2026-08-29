@@ -3,6 +3,8 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Tollkar.Application.Library;
 using Tollkar.Application.Library.Models;
+using Tollkar.Application.Queue;
+using Tollkar.Application.Queue.Models;
 using Tollkar.Core.Songs;
 
 namespace Tollkar.App;
@@ -10,6 +12,7 @@ namespace Tollkar.App;
 public partial class MainWindow : Window
 {
     private readonly ILibraryService _library;
+    private readonly IPlaybackQueueService _playbackQueue;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly TaskCompletionSource _initialization = new(
         TaskCreationOptions.RunContinuationsAsynchronously);
@@ -18,9 +21,10 @@ public partial class MainWindow : Window
     private long _searchVersion;
     private bool _isClosed;
 
-    public MainWindow(ILibraryService library)
+    public MainWindow(ILibraryService library, IPlaybackQueueService playbackQueue)
     {
         _library = library ?? throw new ArgumentNullException(nameof(library));
+        _playbackQueue = playbackQueue ?? throw new ArgumentNullException(nameof(playbackQueue));
         InitializeComponent();
         SearchBox.TextChanged += SearchBox_OnTextChanged;
         Opened += OnOpened;
@@ -36,8 +40,10 @@ public partial class MainWindow : Window
         try
         {
             await _library.InitializeAsync(lifetimeToken);
+            await _playbackQueue.InitializeAsync(lifetimeToken);
             await UpdateLibrarySummaryAsync(lifetimeToken);
             await ReloadSongsAsync(SearchBox.Text, lifetimeToken);
+            await ReloadQueueAsync(lifetimeToken);
             _initialization.TrySetResult();
         }
         catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)
@@ -83,6 +89,18 @@ public partial class MainWindow : Window
         var operation = SearchAfterDelayAsync(++_searchVersion, SearchBox.Text);
         TrackUiOperation(operation);
     }
+
+    private void AddSongToQueue_OnClick(object? sender, RoutedEventArgs eventArgs) =>
+        TrackUiOperation(ChangeQueueAsync(sender, QueueChange.Add));
+
+    private void RemoveQueueItem_OnClick(object? sender, RoutedEventArgs eventArgs) =>
+        TrackUiOperation(ChangeQueueAsync(sender, QueueChange.Remove));
+
+    private void MoveQueueItemUp_OnClick(object? sender, RoutedEventArgs eventArgs) =>
+        TrackUiOperation(ChangeQueueAsync(sender, QueueChange.MoveUp));
+
+    private void MoveQueueItemDown_OnClick(object? sender, RoutedEventArgs eventArgs) =>
+        TrackUiOperation(ChangeQueueAsync(sender, QueueChange.MoveDown));
 
     private async Task AddFolderAsync()
     {
@@ -174,6 +192,53 @@ public partial class MainWindow : Window
         EmptyAddFolderButton.IsVisible = !isSearching;
     }
 
+    private async Task ChangeQueueAsync(object? sender, QueueChange change)
+    {
+        if (sender is not Button { CommandParameter: Guid id }) return;
+
+        try
+        {
+            await Initialization;
+            switch (change)
+            {
+                case QueueChange.Add:
+                    await _playbackQueue.AddAsync(id, _lifetimeCancellation.Token);
+                    break;
+                case QueueChange.Remove:
+                    await _playbackQueue.RemoveAsync(id, _lifetimeCancellation.Token);
+                    break;
+                case QueueChange.MoveUp:
+                case QueueChange.MoveDown:
+                    var offset = change == QueueChange.MoveUp ? -1 : 1;
+                    await _playbackQueue.MoveByAsync(id, offset, _lifetimeCancellation.Token);
+                    break;
+            }
+
+            await ReloadQueueAsync(_lifetimeCancellation.Token);
+        }
+        catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            if (!_isClosed)
+            {
+                LibraryStatusText.Text = $"Не удалось изменить очередь: {exception.Message}";
+            }
+        }
+    }
+
+    private async Task ReloadQueueAsync(CancellationToken cancellationToken)
+    {
+        var items = await _playbackQueue.GetItemsAsync(cancellationToken);
+        if (_isClosed) return;
+
+        QueueList.ItemsSource = items.Select(QueueListItem.FromQueueItem).ToArray();
+        QueueList.IsVisible = items.Count > 0;
+        EmptyQueuePanel.IsVisible = items.Count == 0;
+        QueueCountText.Text = items.Count.ToString();
+    }
+
     private void TrackUiOperation(Task operation)
     {
         _uiOperations.Add(operation);
@@ -201,15 +266,33 @@ public partial class MainWindow : Window
     }
 
     private sealed record SongListItem(
+        Guid Id,
         string Title,
         string Artist,
         string Format,
         string Duration)
     {
         public static SongListItem FromSong(LibrarySong song) => new(
+            song.Id,
             song.Title,
             string.IsNullOrWhiteSpace(song.Artist) ? "Неизвестный исполнитель" : song.Artist,
             song.Capabilities.HasFlag(SongCapabilities.Video) ? "Видео" : "Караоке",
             song.Duration is { } duration ? $"{(int)duration.TotalMinutes}:{duration.Seconds:00}" : string.Empty);
+    }
+
+    private sealed record QueueListItem(Guid Id, string Title, string Artist)
+    {
+        public static QueueListItem FromQueueItem(PlaybackQueueItem item) => new(
+            item.Id,
+            item.Title,
+            string.IsNullOrWhiteSpace(item.Artist) ? "Неизвестный исполнитель" : item.Artist);
+    }
+
+    private enum QueueChange
+    {
+        Add,
+        Remove,
+        MoveUp,
+        MoveDown
     }
 }

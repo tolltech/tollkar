@@ -16,9 +16,9 @@ public partial class App : Avalonia.Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var library = TollkarInfrastructure.CreateLibraryService(
+            var services = TollkarInfrastructure.CreateServices(
                 AppDataPaths.LibraryDatabase);
-            desktop.MainWindow = new MainWindow(library);
+            desktop.MainWindow = new MainWindow(services.Library, services.PlaybackQueue);
         }
 
         base.OnFrameworkInitializationCompleted();
