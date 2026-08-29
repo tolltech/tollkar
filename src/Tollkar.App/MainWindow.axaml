@@ -2,67 +2,255 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="600"
+        mc:Ignorable="d"
+        d:DesignWidth="1200"
+        d:DesignHeight="760"
         x:Class="Tollkar.App.MainWindow"
         Title="Tollkar"
-        Width="960"
-        Height="600"
-        MinWidth="720"
-        MinHeight="480"
+        Width="1200"
+        Height="760"
+        MinWidth="960"
+        MinHeight="620"
         WindowStartupLocation="CenterScreen"
-        Background="#11131A">
-    <Grid RowDefinitions="Auto,*">
-        <Border Grid.Row="0"
-                Padding="28,20"
+        Background="#101116">
+    <Window.Styles>
+        <Style Selector="Button.nav">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="14,11" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#BEC1CC" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#16FFFFFF" />
+        </Style>
+
+        <Style Selector="Button.nav.selected">
+            <Setter Property="Background" Value="#237C5CFC" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Button.primary">
+            <Setter Property="Padding" Value="18,11" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="#7C5CFC" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style Selector="Button.icon">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="19" />
+            <Setter Property="Background" Value="#18FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,88">
+        <Grid Grid.Row="0" ColumnDefinitions="220,*,286">
+            <Border Grid.Column="0"
+                    Padding="18,24"
+                    Background="#15171E"
+                    BorderBrush="#20FFFFFF"
+                    BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+                        <Border Width="34"
+                                Height="34"
+                                CornerRadius="10"
+                                Background="#7C5CFC">
+                            <TextBlock Text="♪"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontSize="21"
+                                       FontWeight="Bold"
+                                       Foreground="White" />
+                        </Border>
+                        <TextBlock Text="Tollkar"
+                                   VerticalAlignment="Center"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="White" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Margin="0,36,0,0" Spacing="5">
+                        <TextBlock Margin="12,0,0,8"
+                                   Text="МЕДИАТЕКА"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="#9CA0AD" />
+                        <Button Classes="nav selected" Content="♫   Все песни" />
+                        <Button Classes="nav" Content="♡   Избранное" />
+                        <Button Classes="nav" Content="↺   История" />
+                    </StackPanel>
+
+                    <Button Grid.Row="3"
+                            Classes="nav"
+                            Content="⚙   Настройки" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="30,26,30,24">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="5">
+                        <TextBlock Text="Все песни"
+                                   FontSize="28"
+                                   FontWeight="SemiBold"
+                                   Foreground="White" />
+                        <TextBlock Text="В медиатеке пока нет песен"
+                                   FontSize="14"
+                                   Foreground="#858997" />
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Classes="primary"
+                            Content="＋  Добавить папку" />
+                </Grid>
+
+                <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,25,0,0">
+                    <TextBox Grid.Row="0"
+                             Height="44"
+                             Padding="15,0"
+                             Watermark="Поиск по названию или исполнителю"
+                             VerticalContentAlignment="Center"
+                             CornerRadius="9"
+                             Background="#181A22"
+                             Foreground="White"
+                             BorderBrush="#28FFFFFF" />
+
+                    <StackPanel Grid.Row="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                MaxWidth="390"
+                                Spacing="14">
+                        <Border Width="72"
+                                Height="72"
+                                HorizontalAlignment="Center"
+                                CornerRadius="36"
+                                Background="#18FFFFFF">
+                            <TextBlock Text="♫"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       FontSize="31"
+                                       Foreground="#A4A8B5" />
+                        </Border>
+                        <TextBlock Text="Добавьте музыку"
+                                   HorizontalAlignment="Center"
+                                   FontSize="21"
+                                   FontWeight="SemiBold"
+                                   Foreground="White" />
+                        <TextBlock Text="Выберите папку с караоке-файлами — песни будут появляться здесь по мере индексации."
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   FontSize="14"
+                                   LineHeight="21"
+                                   Foreground="#858997" />
+                        <Button Classes="primary"
+                                HorizontalAlignment="Center"
+                                Margin="0,7,0,0"
+                                Content="Выбрать папку" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <Border Grid.Column="2"
+                    Padding="22,28"
+                    Background="#14161C"
+                    BorderBrush="#20FFFFFF"
+                    BorderThickness="1,0,0,0">
+                <Grid RowDefinitions="Auto,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                        <TextBlock Text="Очередь"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="White" />
+                        <Border Grid.Column="1"
+                                Padding="9,4"
+                                CornerRadius="10"
+                                Background="#18FFFFFF">
+                            <TextBlock Text="0"
+                                       FontSize="12"
+                                       Foreground="#A6AAB6" />
+                        </Border>
+                    </Grid>
+
+                    <StackPanel Grid.Row="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="10">
+                        <TextBlock Text="Очередь пуста"
+                                   HorizontalAlignment="Center"
+                                   FontWeight="SemiBold"
+                                   Foreground="#C4C7D0" />
+                        <TextBlock Text="Добавляйте песни из медиатеки"
+                                   TextAlignment="Center"
+                                   FontSize="13"
+                                   Foreground="#9CA0AD" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="1"
+                Padding="24,14"
+                Background="#181A21"
                 BorderBrush="#28FFFFFF"
-                BorderThickness="0,0,0,1">
-            <TextBlock Text="Tollkar"
-                       FontSize="22"
-                       FontWeight="SemiBold"
-                       Foreground="White" />
+                BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="260,*,260">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="Ничего не играет"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#D9DBE3" />
+                    <TextBlock Text="Выберите песню в медиатеке"
+                               FontSize="12"
+                               Foreground="#9CA0AD" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="12">
+                    <Button Classes="icon"
+                            Content="|◀"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Предыдущая песня"
+                            ToolTip.Tip="Предыдущая песня" />
+                    <Button Classes="icon"
+                            Content="▶"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Воспроизвести"
+                            ToolTip.Tip="Воспроизвести" />
+                    <Button Classes="icon"
+                            Content="▶|"
+                            IsEnabled="False"
+                            AutomationProperties.Name="Следующая песня"
+                            ToolTip.Tip="Следующая песня" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="10">
+                    <TextBlock Text="🔊"
+                               VerticalAlignment="Center"
+                               FontSize="15"
+                               Foreground="#858997" />
+                    <Slider Width="120"
+                            Minimum="0"
+                            Maximum="100"
+                            Value="70"
+                            IsEnabled="False" />
+                </StackPanel>
+            </Grid>
         </Border>
-
-        <StackPanel Grid.Row="1"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    MaxWidth="560"
-                    Margin="40"
-                    Spacing="18">
-            <Border Width="88"
-                    Height="88"
-                    HorizontalAlignment="Center"
-                    CornerRadius="44"
-                    Background="#7C5CFC">
-                <TextBlock Text="♪"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           FontSize="46"
-                           FontWeight="Bold"
-                           Foreground="White" />
-            </Border>
-
-            <TextBlock Text="Добро пожаловать в Tollkar"
-                       HorizontalAlignment="Center"
-                       TextAlignment="Center"
-                       FontSize="34"
-                       FontWeight="SemiBold"
-                       Foreground="White" />
-
-            <TextBlock Text="Кроссплатформенное караоке-приложение"
-                       HorizontalAlignment="Center"
-                       TextAlignment="Center"
-                       FontSize="17"
-                       Foreground="#B8BBC7" />
-
-            <Border Margin="0,18,0,0"
-                    Padding="24,16"
-                    CornerRadius="12"
-                    Background="#18FFFFFF">
-                <TextBlock Text="Скоро здесь появится ваша медиатека"
-                           TextAlignment="Center"
-                           FontSize="15"
-                           Foreground="#D9DBE3" />
-            </Border>
-        </StackPanel>
     </Grid>
 </Window>
