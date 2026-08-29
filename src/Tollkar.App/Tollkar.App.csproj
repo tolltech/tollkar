@@ -12,4 +12,9 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.20" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.20" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tollkar.Application\Tollkar.Application.csproj" />
+    <ProjectReference Include="..\Tollkar.Infrastructure\Tollkar.Infrastructure.csproj" />
+  </ItemGroup>
 </Project>
