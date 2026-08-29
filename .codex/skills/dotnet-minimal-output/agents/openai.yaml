@@ -1,0 +1,4 @@
+interface:
+  display_name: "Quiet .NET Commands"
+  short_description: "Run dotnet commands with low token output"
+  default_prompt: "Use $dotnet-minimal-output to run the required dotnet commands quietly and preserve full logs under _tmp/."

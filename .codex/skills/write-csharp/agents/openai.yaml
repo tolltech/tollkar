@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write C#"
+  short_description: "Follow this repository C# conventions"
+  default_prompt: "Use $write-csharp to implement this C#/.NET change using the repository conventions."

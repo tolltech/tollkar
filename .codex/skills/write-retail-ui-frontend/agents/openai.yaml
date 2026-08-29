@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Retail UI Frontend"
+  short_description: "Build frontend features with retail-ui"
+  default_prompt: "Use $write-retail-ui-frontend to implement this frontend change with repository wrappers and retail-ui."
