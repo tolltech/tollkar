@@ -121,14 +121,17 @@
                                    FontSize="28"
                                    FontWeight="SemiBold"
                                    Foreground="White" />
-                        <TextBlock Text="В медиатеке пока нет песен"
+                        <TextBlock x:Name="LibraryStatusText"
+                                   Text="Подготовка медиатеки…"
                                    FontSize="14"
                                    Foreground="#858997" />
                     </StackPanel>
 
-                    <Button Grid.Column="1"
+                    <Button x:Name="AddFolderButton"
+                            Grid.Column="1"
                             Classes="primary"
-                            Content="＋  Добавить папку" />
+                            Content="＋  Добавить папку"
+                            Click="AddFolder_OnClick" />
                 </Grid>
 
                 <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,25,0,0">
@@ -169,10 +172,12 @@
                                    FontSize="14"
                                    LineHeight="21"
                                    Foreground="#858997" />
-                        <Button Classes="primary"
+                        <Button x:Name="EmptyAddFolderButton"
+                                Classes="primary"
                                 HorizontalAlignment="Center"
                                 Margin="0,7,0,0"
-                                Content="Выбрать папку" />
+                                Content="Выбрать папку"
+                                Click="AddFolder_OnClick" />
                     </StackPanel>
                 </Grid>
             </Grid>
