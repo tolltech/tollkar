@@ -3,6 +3,8 @@ using Tollkar.Application.Library;
 using Tollkar.Application.Library.Indexing;
 using Tollkar.Application.Library.Models;
 using Tollkar.Application.Library.Persistence;
+using Tollkar.Core.Formats;
+using Tollkar.Core.Songs;
 
 namespace Tollkar.Application.Tests.Library;
 
@@ -104,6 +106,20 @@ public sealed class LibraryServiceTests
             LastSearchQuery = query;
             return ValueTask.FromResult<IReadOnlyList<LibrarySong>>([]);
         }
+
+        public ValueTask<IndexedFileRecord?> GetIndexedFileAsync(
+            string path,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IndexedFileRecord?>(null);
+
+        public ValueTask<Guid> UpsertSongAsync(
+            Guid rootId,
+            FileCandidate file,
+            string providerId,
+            int providerVersion,
+            SongMetadata metadata,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(Guid.NewGuid());
     }
 
     private sealed class StubScanner : ILibraryScanner
