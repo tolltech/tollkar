@@ -107,6 +107,11 @@ public sealed class LibraryServiceTests
             return ValueTask.FromResult<IReadOnlyList<LibrarySong>>([]);
         }
 
+        public ValueTask<Tollkar.Core.Songs.Song?> GetSongAsync(
+            Guid songId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<Tollkar.Core.Songs.Song?>(null);
+
         public ValueTask<IndexedFileRecord?> GetIndexedFileAsync(
             string path,
             CancellationToken cancellationToken = default) =>

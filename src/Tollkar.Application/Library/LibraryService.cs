@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Tollkar.Application.Library.Indexing;
 using Tollkar.Application.Library.Models;
 using Tollkar.Application.Library.Persistence;
+using Tollkar.Core.Songs;
 
 namespace Tollkar.Application.Library;
 
@@ -44,6 +45,18 @@ internal sealed class LibraryService(
         ArgumentNullException.ThrowIfNull(query);
         var validatedQuery = query with { Limit = query.ValidatedLimit };
         return _repository.SearchSongsAsync(validatedQuery, cancellationToken);
+    }
+
+    public ValueTask<Song?> GetSongAsync(
+        Guid songId,
+        CancellationToken cancellationToken = default)
+    {
+        if (songId == Guid.Empty)
+        {
+            throw new ArgumentException("Song ID cannot be empty.", nameof(songId));
+        }
+
+        return _repository.GetSongAsync(songId, cancellationToken);
     }
 
     public async IAsyncEnumerable<LibraryIndexProgress> RefreshRootAsync(

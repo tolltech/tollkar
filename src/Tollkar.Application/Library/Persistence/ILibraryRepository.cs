@@ -23,6 +23,8 @@ internal interface ILibraryRepository
         LibrarySearchQuery query,
         CancellationToken cancellationToken = default);
 
+    ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default);
+
     ValueTask<IndexedFileRecord?> GetIndexedFileAsync(
         string path,
         CancellationToken cancellationToken = default);

@@ -34,14 +34,17 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
         var reopened = new SqliteLibraryRepository(databasePath);
         await reopened.InitializeAsync();
         var songs = await reopened.SearchSongsAsync(new LibrarySearchQuery("Группа"));
+        var song = Assert.Single(songs);
         var indexedFile = await reopened.GetIndexedFileAsync(file.Path);
+        var playableSong = await reopened.GetSongAsync(song.Id);
         var persistedRoot = await reopened.GetRootAsync(root.Id);
         var readdedRoot = await reopened.AddRootAsync(Path.Combine(_directory, "karaoke"));
 
-        var song = Assert.Single(songs);
         Assert.Equal("Кино", song.Artist);
         Assert.Equal("Группа крови", song.Title);
         Assert.Equal(3, indexedFile?.ProviderVersion);
+        Assert.Equal(Path.GetFullPath(file.Path), playableSong?.Source.FilePath);
+        Assert.Equal("video", playableSong?.Source.ProviderId);
         Assert.Equal(1, persistedRoot?.SongCount);
         Assert.Equal(1, readdedRoot.SongCount);
     }

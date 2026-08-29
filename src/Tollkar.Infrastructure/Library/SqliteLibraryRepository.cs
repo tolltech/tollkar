@@ -155,6 +155,23 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
         return songs;
     }
 
+    public async ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT s.Title,s.Artist,s.DurationTicks,s.Capabilities,f.ProviderId,f.Path FROM Songs s JOIN Files f ON f.SongId=s.Id WHERE s.Id=$id;";
+        command.Parameters.AddWithValue("$id", songId.ToString());
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return null;
+
+        var metadata = new SongMetadata(
+            reader.GetString(0),
+            reader.IsDBNull(1) ? null : reader.GetString(1),
+            reader.IsDBNull(2) ? null : TimeSpan.FromTicks(reader.GetInt64(2)),
+            (SongCapabilities)reader.GetInt32(3));
+        return new(songId, metadata, new SongSource(reader.GetString(4), reader.GetString(5)));
+    }
+
     public async ValueTask<IndexedFileRecord?> GetIndexedFileAsync(
         string path,
         CancellationToken cancellationToken = default)
