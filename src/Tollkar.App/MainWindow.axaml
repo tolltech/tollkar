@@ -218,6 +218,16 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
+                    <Border x:Name="PlayerVideoPanel"
+                            Grid.Row="1"
+                            Margin="0,18,0,0"
+                            CornerRadius="10"
+                            ClipToBounds="True"
+                            Background="Black"
+                            IsVisible="False">
+                        <ContentControl x:Name="VideoSurfaceHost" />
+                    </Border>
+
                     <StackPanel x:Name="EmptyLibraryPanel"
                                 Grid.Row="1"
                                 HorizontalAlignment="Center"
@@ -313,6 +323,12 @@
                                                     Orientation="Horizontal"
                                                     Spacing="3">
                                             <Button Padding="6,3"
+                                                    Content="▶"
+                                                    IsVisible="{Binding CanPlay}"
+                                                    CommandParameter="{Binding Id}"
+                                                    Click="PlayQueueItem_OnClick"
+                                                    ToolTip.Tip="Воспроизвести" />
+                                            <Button Padding="6,3"
                                                     Content="↑"
                                                     CommandParameter="{Binding Id}"
                                                     Click="MoveQueueItemUp_OnClick"
@@ -359,11 +375,13 @@
                 BorderThickness="0,1,0,0">
             <Grid ColumnDefinitions="260,*,260">
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="4">
-                    <TextBlock Text="Ничего не играет"
+                    <TextBlock x:Name="NowPlayingTitleText"
+                               Text="Ничего не играет"
                                FontSize="14"
                                FontWeight="SemiBold"
                                Foreground="#D9DBE3" />
-                    <TextBlock Text="Выберите песню в медиатеке"
+                    <TextBlock x:Name="NowPlayingArtistText"
+                               Text="Выберите песню в медиатеке"
                                FontSize="12"
                                Foreground="#9CA0AD" />
                 </StackPanel>
@@ -377,22 +395,28 @@
                             IsEnabled="False"
                             AutomationProperties.Name="Предыдущая песня"
                             ToolTip.Tip="Предыдущая песня">
-                        <PathIcon Width="18"
+                        <PathIcon
+                                  Width="18"
                                   Height="18"
                                   Foreground="White"
                                   Data="M4,3 L6,3 L6,15 L4,15 Z M15,3 L7,9 L15,15 Z" />
                     </Button>
-                    <Button Classes="icon"
+                    <Button x:Name="PlayPauseButton"
+                            Classes="icon"
                             IsEnabled="False"
+                            Click="PlayPause_OnClick"
                             AutomationProperties.Name="Воспроизвести"
                             ToolTip.Tip="Воспроизвести">
-                        <PathIcon Width="18"
+                        <PathIcon x:Name="PlayPauseIcon"
+                                  Width="18"
                                   Height="18"
                                   Foreground="White"
                                   Data="M5,3 L16,9 L5,15 Z" />
                     </Button>
-                    <Button Classes="icon"
+                    <Button x:Name="NextButton"
+                            Classes="icon"
                             IsEnabled="False"
+                            Click="Next_OnClick"
                             AutomationProperties.Name="Следующая песня"
                             ToolTip.Tip="Следующая песня">
                         <PathIcon Width="18"

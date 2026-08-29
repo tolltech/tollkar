@@ -1,6 +1,7 @@
 .DS_Store
 .dotnet-home/
 .nuget/
+_tmp/
 **/bin/
 **/obj/
 .idea/

@@ -1,5 +1,6 @@
 using Tollkar.Application.Library;
 using Tollkar.Application.Queue;
+using Tollkar.Application.Playback;
 using Tollkar.Core.Formats;
 using Tollkar.Core.Formats.Video;
 using Tollkar.Infrastructure.Library;
@@ -28,5 +29,24 @@ public static class TollkarInfrastructure
             new SqlitePlaybackQueueRepository(databasePath),
             repository.InitializeAsync);
         return new(library, playbackQueue);
+    }
+
+    public static IPlayerService CreatePlayerService(
+        ILibraryService library,
+        IEnumerable<Tollkar.Core.Playback.ISongPlaybackProvider> providers)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        return new PlayerService(
+            library,
+            new Tollkar.Core.Playback.SongPlaybackProviderRegistry(providers));
+    }
+
+    public static IQueuePlayerService CreateQueuePlayerService(
+        IPlaybackQueueService queue,
+        IPlayerService player)
+    {
+        ArgumentNullException.ThrowIfNull(queue);
+        ArgumentNullException.ThrowIfNull(player);
+        return new QueuePlayerService(queue, player);
     }
 }
