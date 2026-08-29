@@ -136,6 +136,7 @@
 
                 <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,25,0,0">
                     <TextBox Grid.Row="0"
+                             x:Name="SearchBox"
                              Height="44"
                              Padding="15,0"
                              Watermark="Поиск по названию или исполнителю"
@@ -145,7 +146,67 @@
                              Foreground="White"
                              BorderBrush="#28FFFFFF" />
 
-                    <StackPanel Grid.Row="1"
+                    <ListBox x:Name="SongsList"
+                             Grid.Row="1"
+                             Margin="0,18,0,0"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             IsVisible="False">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="14,12"
+                                        Margin="0,0,0,6"
+                                        CornerRadius="8"
+                                        Background="#181A22">
+                                    <Grid ColumnDefinitions="44,*,Auto">
+                                        <Border Width="36"
+                                                Height="36"
+                                                CornerRadius="8"
+                                                Background="#237C5CFC">
+                                            <TextBlock Text="♫"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="18"
+                                                       Foreground="#CFC5FF" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    Spacing="2">
+                                            <TextBlock Text="{Binding Title}"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="White" />
+                                            <TextBlock Text="{Binding Artist}"
+                                                       FontSize="13"
+                                                       Foreground="#9CA0AD" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2"
+                                                    VerticalAlignment="Center"
+                                                    HorizontalAlignment="Right"
+                                                    Spacing="2">
+                                            <TextBlock Text="{Binding Format}"
+                                                       HorizontalAlignment="Right"
+                                                       FontSize="12"
+                                                       Foreground="#9CA0AD" />
+                                            <TextBlock Text="{Binding Duration}"
+                                                       HorizontalAlignment="Right"
+                                                       FontSize="12"
+                                                       Foreground="#6F7380" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel x:Name="EmptyLibraryPanel"
+                                Grid.Row="1"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 MaxWidth="390"
@@ -161,12 +222,14 @@
                                        FontSize="31"
                                        Foreground="#A4A8B5" />
                         </Border>
-                        <TextBlock Text="Добавьте музыку"
+                        <TextBlock x:Name="EmptyLibraryTitle"
+                                   Text="Добавьте музыку"
                                    HorizontalAlignment="Center"
                                    FontSize="21"
                                    FontWeight="SemiBold"
                                    Foreground="White" />
-                        <TextBlock Text="Выберите папку с караоке-файлами — песни будут появляться здесь по мере индексации."
+                        <TextBlock x:Name="EmptyLibraryDescription"
+                                   Text="Выберите папку с караоке-файлами — песни будут появляться здесь по мере индексации."
                                    TextAlignment="Center"
                                    TextWrapping="Wrap"
                                    FontSize="14"
