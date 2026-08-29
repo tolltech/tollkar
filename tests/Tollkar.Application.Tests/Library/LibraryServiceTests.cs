@@ -120,6 +120,18 @@ public sealed class LibraryServiceTests
             SongMetadata metadata,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(Guid.NewGuid());
+
+        public ValueTask MarkFileSeenAsync(
+            string path,
+            Guid scanId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask RemoveFilesNotSeenAsync(
+            Guid rootId,
+            Guid scanId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
     }
 
     private sealed class StubScanner : ILibraryScanner

@@ -7,7 +7,7 @@ namespace Tollkar.Infrastructure.Library;
 
 internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRepository
 {
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
 
     private readonly string _connectionString = new SqliteConnectionStringBuilder
     {
@@ -50,6 +50,17 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
                 tokenize = 'unicode61 remove_diacritics 2');
             PRAGMA user_version = 1;
             """;
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            version = 1;
+        }
+
+        if (version == 1)
+        {
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqliteTransaction)transaction;
+            command.CommandText = "ALTER TABLE Files ADD COLUMN LastSeenScanId TEXT NULL; PRAGMA user_version = 2;";
             await command.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
@@ -181,6 +192,35 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
 
         await transaction.CommitAsync(cancellationToken);
         return songId;
+    }
+
+    public async ValueTask MarkFileSeenAsync(
+        string path,
+        Guid scanId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Files SET LastSeenScanId=$scan WHERE Path=$path;";
+        command.Parameters.AddWithValue("$scan", scanId.ToString());
+        command.Parameters.AddWithValue("$path", Path.GetFullPath(path));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async ValueTask RemoveFilesNotSeenAsync(
+        Guid rootId,
+        Guid scanId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = (SqliteTransaction)transaction;
+        command.CommandText = "DELETE FROM SongSearch WHERE SongId IN (SELECT s.Id FROM Songs s JOIN Files f ON f.SongId=s.Id WHERE s.RootId=$root AND (f.LastSeenScanId IS NULL OR f.LastSeenScanId<>$scan)); DELETE FROM Songs WHERE RootId=$root AND Id IN (SELECT SongId FROM Files WHERE LastSeenScanId IS NULL OR LastSeenScanId<>$scan);";
+        command.Parameters.AddWithValue("$root", rootId.ToString());
+        command.Parameters.AddWithValue("$scan", scanId.ToString());
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static async ValueTask<Guid?> FindSongIdAsync(

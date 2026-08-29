@@ -5,4 +5,9 @@ public sealed record LibraryIndexProgress(
     int DiscoveredFiles,
     int IndexedSongs,
     int FailedFiles,
-    bool IsCompleted);
+    bool IsCompleted)
+{
+    public int UnchangedFiles { get; init; }
+
+    public int IgnoredFiles { get; init; }
+}

@@ -34,4 +34,14 @@ internal interface ILibraryRepository
         int providerVersion,
         SongMetadata metadata,
         CancellationToken cancellationToken = default);
+
+    ValueTask MarkFileSeenAsync(
+        string path,
+        Guid scanId,
+        CancellationToken cancellationToken = default);
+
+    ValueTask RemoveFilesNotSeenAsync(
+        Guid rootId,
+        Guid scanId,
+        CancellationToken cancellationToken = default);
 }
