@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="600"
+        x:Class="Tollkar.App.MainWindow"
+        Title="Tollkar"
+        Width="960"
+        Height="600"
+        MinWidth="720"
+        MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        Background="#11131A">
+    <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0"
+                Padding="28,20"
+                BorderBrush="#28FFFFFF"
+                BorderThickness="0,0,0,1">
+            <TextBlock Text="Tollkar"
+                       FontSize="22"
+                       FontWeight="SemiBold"
+                       Foreground="White" />
+        </Border>
+
+        <StackPanel Grid.Row="1"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    MaxWidth="560"
+                    Margin="40"
+                    Spacing="18">
+            <Border Width="88"
+                    Height="88"
+                    HorizontalAlignment="Center"
+                    CornerRadius="44"
+                    Background="#7C5CFC">
+                <TextBlock Text="♪"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="46"
+                           FontWeight="Bold"
+                           Foreground="White" />
+            </Border>
+
+            <TextBlock Text="Добро пожаловать в Tollkar"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       FontSize="34"
+                       FontWeight="SemiBold"
+                       Foreground="White" />
+
+            <TextBlock Text="Кроссплатформенное караоке-приложение"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       FontSize="17"
+                       Foreground="#B8BBC7" />
+
+            <Border Margin="0,18,0,0"
+                    Padding="24,16"
+                    CornerRadius="12"
+                    Background="#18FFFFFF">
+                <TextBlock Text="Скоро здесь появится ваша медиатека"
+                           TextAlignment="Center"
+                           FontSize="15"
+                           Foreground="#D9DBE3" />
+            </Border>
+        </StackPanel>
+    </Grid>
+</Window>
