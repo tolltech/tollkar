@@ -1,13 +1,19 @@
-import { Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom'
+import { useState } from 'react'
+import { Navigate, NavLink, Outlet, Route, Routes, useNavigate, useOutletContext } from 'react-router-dom'
+import { LoginPage } from './auth/LoginPage'
+import { RequireUser } from './auth/RequireUser'
+import { submitAuth, type User } from './auth/api'
 import './App.css'
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route element={<AppLayout />}>
-        <Route path="/queue" element={<QueuePage />} />
-        <Route path="/player" element={<PlayerPage />} />
+      <Route element={<RequireUser />}>
+        <Route element={<AppLayout />}>
+          <Route path="/queue" element={<QueuePage />} />
+          <Route path="/player" element={<PlayerPage />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
@@ -15,6 +21,24 @@ function App() {
 }
 
 function AppLayout() {
+  const user = useOutletContext<User>()
+  const navigate = useNavigate()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
+
+  async function logout() {
+    setPending(true)
+    setError('')
+    try {
+      await submitAuth('logout')
+      navigate('/login', { replace: true })
+    } catch {
+      setError('Не удалось выйти. Повторите попытку.')
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -26,30 +50,13 @@ function AppLayout() {
           <NavLink to="/queue">Очередь</NavLink>
           <NavLink to="/player">Плеер</NavLink>
         </nav>
+        <div className="user-menu"><span>{user.login}</span><button className="secondary-button" disabled={pending} onClick={logout}>{pending ? 'Выходим…' : 'Выйти'}</button></div>
       </header>
       <main className="app-content">
+        {error && <p role="alert">{error}</p>}
         <Outlet />
       </main>
     </div>
-  )
-}
-
-function LoginPage() {
-  return (
-    <main className="login-page">
-      <section className="login-card" aria-labelledby="login-title">
-        <div className="brand login-brand">
-          <span className="brand-mark" aria-hidden="true">T</span>
-          <span>Tollkar</span>
-        </div>
-        <p className="eyebrow">Веб-караоке</p>
-        <h1 id="login-title">Ваша очередь. Ваш экран.</h1>
-        <p className="page-description">
-          Авторизация и персональные очереди появятся на следующем этапе.
-        </p>
-        <NavLink className="primary-button" to="/queue">Открыть прототип</NavLink>
-      </section>
-    </main>
   )
 }
 

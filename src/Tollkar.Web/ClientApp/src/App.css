@@ -163,6 +163,13 @@ h1 { font-size: clamp(36px, 6vw, 72px); letter-spacing: -0.06em; line-height: 0.
 }
 
 .login-brand { margin-bottom: 56px; }
+.auth-form { display: grid; gap: 12px; }
+.auth-form input { background: var(--background); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font: inherit; min-width: 0; padding: 12px; width: 100%; }
+.auth-error { color: #ffacba; overflow-wrap: anywhere; }
+.user-menu { align-items: center; display: flex; gap: 16px; overflow-wrap: anywhere; }
+button { cursor: pointer; font: inherit; }
+button:disabled { cursor: wait; opacity: 0.6; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent-light); outline-offset: 3px; }
 .login-card h1 { font-size: clamp(42px, 7vw, 76px); }
 
 @media (max-width: 640px) {

@@ -2,6 +2,9 @@
 .dotnet-home/
 .nuget/
 _tmp/
+*.db
+*.db-shm
+*.db-wal
 **/bin/
 **/obj/
 **/node_modules/
