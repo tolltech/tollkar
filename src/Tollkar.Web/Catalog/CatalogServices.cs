@@ -10,6 +10,14 @@ public static class CatalogServices
 {
     public static void AddCatalog(this WebApplicationBuilder builder)
     {
+        builder.Services.AddOptions<LibrarySyncOptions>()
+            .Bind(builder.Configuration.GetSection("Library"))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.SongsPath), "Library:SongsPath is required.")
+            .Validate(options => options.SyncInterval > TimeSpan.Zero && options.SyncInterval <= TimeSpan.FromDays(1),
+                "Library:SyncInterval must be positive and no greater than one day.")
+            .ValidateOnStart();
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddHostedService<LibrarySyncService>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddSingleton<ILibraryService>(services =>
             new SynchronizedLibrary(TollkarInfrastructure.CreateLibraryService(DatabasePath(services)),

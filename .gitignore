@@ -9,6 +9,8 @@ _tmp/
 **/obj/
 **/node_modules/
 src/Tollkar.Web/wwwroot/
+src/Tollkar.Web/songs/*
+!src/Tollkar.Web/songs/.gitkeep
 .idea/
 .vscode/
 *.DotSettings.user

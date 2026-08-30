@@ -28,7 +28,8 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
             new Dictionary<string, string?>
             {
                 ["ConnectionStrings:WebDatabase"] = $"Data Source={Path.Combine(directory, "web.db")};Pooling=False",
-                ["Library:DatabasePath"] = Path.Combine(directory, "library.db")
+                ["Library:DatabasePath"] = Path.Combine(directory, "library.db"),
+                ["Library:SongsPath"] = Path.Combine(directory, "songs")
             }));
         builder.ConfigureServices(services => services.AddSingleton<IStartupFilter, ProtectedTestEndpoints>());
         if (interceptor is not null)

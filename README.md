@@ -51,8 +51,29 @@ The frontend verifies `/api/auth/me` before rendering `/queue` or `/player`.
 
 Set `Library__DatabasePath` to the shared catalog SQLite file (default `tollkar-library.db`, relative to
 the process working directory). It must be separate from the Identity database. To use an existing
-desktop catalog, point this setting at its library file. Index songs through the desktop library UI;
-the web API does not expose filesystem paths or filesystem indexing operations.
+desktop catalog, point this setting at its library file.
+
+For a separate web catalog, manually put songs in `src/Tollkar.Web/songs` during development,
+or `songs` under the deployed application's content root. The directory is created automatically.
+A hosted background service scans it at startup, then waits 30 seconds after each completed scan
+before scanning again. Subdirectories are included; added and changed files are indexed, unchanged
+files keep their IDs, and deleted files are removed from the catalog using the same scanner as desktop.
+Only this directory is refreshed automatically; any other catalog roots remain untouched.
+Scan failures are logged and retried on the next pass without stopping the web server.
+
+Currently supported files are `.mp4`; use `Artist - Title.mp4` for artist/title metadata.
+To avoid indexing a partially copied file, copy it with a temporary extension and rename it to `.mp4`
+when the transfer completes. No desktop application or server restart is needed for new songs.
+The API exposes search; queue/player screens display the synchronized personal queue.
+
+Configure `Library:SongsPath` (environment variable `Library__SongsPath`) to change the directory;
+relative paths resolve against the web application's content root, not the shell working directory.
+Configure `Library:SyncInterval` (`Library__SyncInterval`, for example `00:01:00`) to change the delay;
+it must be positive and no greater than one day. Keep the songs directory outside `wwwroot`:
+it is server-side storage and must not be publicly served as static files.
+Songs are ignored by Git and excluded from build/publish output; provision or persist the directory
+separately during deployment and grant the server read/write access to it and the catalog database.
+The Identity database remains separate; the web API does not expose filesystem paths or indexing operations.
 
 The library's existing versioned SQL initializer upgrades schema 3 to 4 transactionally at startup.
 Existing queue entries are preserved with owner `local-desktop`, inaccessible to web users.
