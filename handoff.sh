@@ -11,7 +11,7 @@ if [ ! -d "$client_dir/node_modules" ]; then
     (cd "$client_dir" && npm ci)
 fi
 
-(cd "$client_dir" && npm run lint && npm run build)
+(cd "$client_dir" && npm run lint && npm test && npm run build)
 
 sh "$dotnet_quiet" --label build-solution -- dotnet build "$repo_dir/Tollkar.sln" --nologo --verbosity minimal
 sh "$dotnet_quiet" --label test-solution -- dotnet test "$repo_dir/Tollkar.sln" --nologo --verbosity minimal --no-build

@@ -44,7 +44,7 @@ invalid credentials return 401 with `errors.InvalidCredentials`. Passwords are n
 Authorization is required by default for new API endpoints, including future library, queue and playback APIs.
 Only auth, health, the API 404 handler and the SPA fallback are explicitly anonymous.
 Do not apply `AllowAnonymous` to future data endpoints; derive ownership from the authenticated user ID,
-not a client-supplied ID. Queue/player currently remain UI placeholders; the queue API is available.
+not a client-supplied ID. Queue/player display the synchronized personal queue; playback controls are a later stage.
 The frontend verifies `/api/auth/me` before rendering `/queue` or `/player`.
 
 ## Library and personal queues
@@ -80,3 +80,8 @@ verify read/write isolation, ordering, CSRF protection, and preservation of lega
 ## Validate changes
 
 Run the repository handoff gate with `./handoff.sh`.
+
+## Real-time synchronization
+
+See [the SignalR protocol and deployment notes](docs/realtime.md) for queue events, snapshot recovery,
+state versions and single-process deployment limits.

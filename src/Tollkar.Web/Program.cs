@@ -1,10 +1,13 @@
 using Tollkar.Web.Authentication;
 using Tollkar.Web.Catalog;
 using Tollkar.Application.Library;
+using Tollkar.Web.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddWebAuthentication();
 builder.AddCatalog();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<QueueStateCoordinator>();
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 var app = builder.Build();
 await app.Services.GetRequiredService<ILibraryService>().InitializeAsync();
@@ -33,6 +36,7 @@ app.UseAuthorization();
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
 app.MapAuthEndpoints();
 app.MapCatalogEndpoints();
+app.MapHub<KaraokeHub>("/api/karaoke");
 app.Map("/api/{**path}", () => Results.NotFound()).AllowAnonymous();
 app.MapFallbackToFile("index.html").AllowAnonymous();
 

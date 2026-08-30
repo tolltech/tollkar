@@ -4,6 +4,8 @@ import { LoginPage } from './auth/LoginPage'
 import { RequireUser } from './auth/RequireUser'
 import { submitAuth, type User } from './auth/api'
 import './App.css'
+import { useQueue } from './queue/useQueue'
+import { QueueState } from './queue/QueueState'
 
 function App() {
   return (
@@ -22,6 +24,7 @@ function App() {
 
 function AppLayout() {
   const user = useOutletContext<User>()
+  const queue = useQueue(user.id)
   const navigate = useNavigate()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
@@ -54,7 +57,7 @@ function AppLayout() {
       </header>
       <main className="app-content">
         {error && <p role="alert">{error}</p>}
-        <Outlet />
+        <Outlet context={queue} />
       </main>
     </div>
   )
@@ -67,15 +70,11 @@ function QueuePage() {
         <div>
           <p className="eyebrow">Пульт управления</p>
           <h1 id="queue-title">Очередь караоке</h1>
-          <p className="page-description">Здесь появятся поиск песен, сортировка и управление очередью.</p>
+          <p className="page-description">Очередь автоматически обновляется на всех ваших устройствах.</p>
         </div>
         <NavLink className="secondary-button" to="/player">Открыть плеер</NavLink>
       </div>
-      <div className="empty-state">
-        <span className="empty-state-icon" aria-hidden="true">♪</span>
-        <h2>Очередь пока пуста</h2>
-        <p>На следующем этапе подключим библиотеку и персональные очереди.</p>
-      </div>
+      <QueueState />
     </section>
   )
 }
@@ -91,6 +90,7 @@ function PlayerPage() {
           <p>Видео и синхронизированные команды появятся на следующих этапах.</p>
         </div>
       </div>
+      <QueueState />
     </section>
   )
 }
