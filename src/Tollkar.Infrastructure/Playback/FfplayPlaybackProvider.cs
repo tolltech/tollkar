@@ -31,6 +31,34 @@ internal sealed class FfplayPlaybackProvider(string executablePath) : ISongPlayb
             : new FfplayPlaybackProvider(executable);
     }
 
+    internal static ProcessStartInfo CreateStartInfo(
+        string executable,
+        Song song,
+        TimeSpan startPosition)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = executable,
+            UseShellExecute = false,
+            CreateNoWindow = false
+        };
+        startInfo.ArgumentList.Add("-autoexit");
+        startInfo.ArgumentList.Add("-loglevel");
+        startInfo.ArgumentList.Add("error");
+        startInfo.ArgumentList.Add("-nostats");
+        startInfo.ArgumentList.Add("-window_title");
+        startInfo.ArgumentList.Add($"Tollkar — {song.Metadata.Title}");
+        if (startPosition > TimeSpan.Zero)
+        {
+            startInfo.ArgumentList.Add("-ss");
+            startInfo.ArgumentList.Add(
+                startPosition.TotalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        startInfo.ArgumentList.Add("-i");
+        startInfo.ArgumentList.Add(song.Source.FilePath);
+        return startInfo;
+    }
+
     private sealed class FfplayPlaybackSession : ISongPlaybackSession
     {
         private readonly object _sync = new();
@@ -87,16 +115,8 @@ internal sealed class FfplayPlaybackProvider(string executablePath) : ISongPlayb
                 if (process is null || process.HasExited)
                 {
                     RetireProcess(process);
-                    StartProcess();
-                    return;
-                }
-
-                try
-                {
-                    await SendSignalAsync(process.Id, "CONT", cancellationToken);
-                }
-                catch (InvalidOperationException) when (process.HasExited)
-                {
+                    if (State != PlaybackState.Paused) _position.Reset();
+                    StartProcess(_position.Elapsed);
                     return;
                 }
                 if (TrySetState(process, PlaybackState.Playing))
@@ -118,19 +138,10 @@ internal sealed class FfplayPlaybackProvider(string executablePath) : ISongPlayb
             {
                 DisposeRetiredProcesses();
                 var process = GetRunningProcess();
-                try
-                {
-                    await SendSignalAsync(process.Id, "STOP", cancellationToken);
-                }
-                catch (InvalidOperationException) when (process.HasExited)
-                {
-                    return;
-                }
-                if (TrySetState(process, PlaybackState.Paused))
-                {
-                    _position.Stop();
-                    _positionTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                }
+                if (!await TerminateProcessAsync(process)) return;
+                _position.Stop();
+                _positionTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                SetState(PlaybackState.Paused);
             }
             finally
             {
@@ -177,24 +188,9 @@ internal sealed class FfplayPlaybackProvider(string executablePath) : ISongPlayb
             }
         }
 
-        private void StartProcess()
+        private void StartProcess(TimeSpan startPosition)
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = _executablePath,
-                UseShellExecute = false,
-                CreateNoWindow = false
-            };
-            startInfo.ArgumentList.Add("-autoexit");
-            startInfo.ArgumentList.Add("-loglevel");
-            startInfo.ArgumentList.Add("error");
-            startInfo.ArgumentList.Add("-nostats");
-            startInfo.ArgumentList.Add("-window_title");
-            startInfo.ArgumentList.Add($"Tollkar — {Song.Metadata.Title}");
-            startInfo.ArgumentList.Add("-i");
-            startInfo.ArgumentList.Add(Song.Source.FilePath);
-
-            var process = Process.Start(startInfo) ??
+            var process = Process.Start(CreateStartInfo(_executablePath, Song, startPosition)) ??
                 throw new InvalidOperationException("ffplay process could not be started.");
             lock (_sync)
             {
@@ -202,7 +198,7 @@ internal sealed class FfplayPlaybackProvider(string executablePath) : ISongPlayb
                 _isStopping = false;
                 _process = process;
             }
-            _position.Restart();
+            _position.Start();
             _positionTimer.Change(TimeSpan.Zero, TimeSpan.FromMilliseconds(250));
             TrySetState(process, PlaybackState.Playing);
             process.Exited += Process_OnExited;
@@ -222,18 +218,22 @@ internal sealed class FfplayPlaybackProvider(string executablePath) : ISongPlayb
             }
         }
 
-        private async ValueTask TerminateProcessAsync()
+        private async ValueTask<bool> TerminateProcessAsync(Process? expectedProcess = null)
         {
             Process? process;
             lock (_sync)
             {
+                if (expectedProcess is not null && !ReferenceEquals(expectedProcess, _process))
+                {
+                    return false;
+                }
                 _isStopping = true;
                 process = _process;
                 _process = null;
             }
 
             _positionTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            if (process is null) return;
+            if (process is null) return false;
             process.Exited -= Process_OnExited;
             try
             {
@@ -250,6 +250,7 @@ internal sealed class FfplayPlaybackProvider(string executablePath) : ISongPlayb
             {
                 process.Dispose();
             }
+            return true;
         }
 
         private void Process_OnExited(object? sender, EventArgs eventArgs)
@@ -320,29 +321,6 @@ internal sealed class FfplayPlaybackProvider(string executablePath) : ISongPlayb
                 _state = state;
             }
             StateChanged?.Invoke(this, EventArgs.Empty);
-        }
-
-        private static async ValueTask SendSignalAsync(
-            int processId,
-            string signal,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "/bin/kill",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            startInfo.ArgumentList.Add($"-{signal}");
-            startInfo.ArgumentList.Add(processId.ToString());
-            using var signalProcess = Process.Start(startInfo) ??
-                throw new InvalidOperationException("Process signal could not be sent.");
-            await signalProcess.WaitForExitAsync();
-            if (signalProcess.ExitCode != 0)
-            {
-                throw new InvalidOperationException($"ffplay did not accept signal {signal}.");
-            }
         }
 
         private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_isDisposed, this);
