@@ -106,6 +106,28 @@ verify read/write isolation, ordering, CSRF protection, and preservation of lega
 
 Run the repository handoff gate with `./handoff.sh`.
 
+## Streaming video
+
+`GET /api/songs/{songId}/media` streams an indexed MP4 to an authenticated browser using its
+session cookie. `HEAD` returns the same media headers without a body. Use the song ID from library
+search or a queue item; the API accepts no filesystem path. All signed-in users can stream catalog
+songs; a song does not need to belong to their queue.
+
+Responses use `Content-Type: video/mp4`, `X-Content-Type-Options: nosniff` and `Cache-Control: no-store`.
+ASP.NET Core processes byte ranges directly from a seekable file stream without buffering the whole
+video: full requests return 200, satisfiable single ranges (including suffix/open-ended ranges) return
+206 with `Content-Range`, and unsatisfiable ranges return 416 with the file length. Malformed and
+multiple ranges fall back to the full response. Unauthenticated requests return 401 without redirecting
+to login, including HEAD and Range requests.
+
+Only files under the configured `Library:SongsPath` are served. Catalog entries from other roots,
+unknown IDs, missing/unreadable files, unsupported formats, and symbolic links in the songs directory
+return 404 without exposing local paths. The songs root itself must not be a symbolic link.
+Keep this directory outside `wwwroot` and do not expose it through a reverse proxy's static-file route.
+The directory, its ancestors and catalog database must be writable only by trusted server operators:
+path checks are not a sandbox against a local process replacing filesystem entries concurrently.
+The player UI will connect to this endpoint in a later stage; this stage adds only the streaming API.
+
 ## Real-time synchronization
 
 See [the SignalR protocol and deployment notes](docs/realtime.md) for queue events, snapshot recovery,

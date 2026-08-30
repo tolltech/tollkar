@@ -2,6 +2,7 @@ using Tollkar.Web.Authentication;
 using Tollkar.Web.Catalog;
 using Tollkar.Application.Library;
 using Tollkar.Web.Realtime;
+using Tollkar.Web.Media;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddWebAuthentication();
@@ -36,6 +37,7 @@ app.UseAuthorization();
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
 app.MapAuthEndpoints();
 app.MapCatalogEndpoints();
+app.MapMediaEndpoints();
 app.MapHub<KaraokeHub>("/api/karaoke");
 app.Map("/api/{**path}", () => Results.NotFound()).AllowAnonymous();
 app.MapFallbackToFile("index.html").AllowAnonymous();
