@@ -44,7 +44,8 @@ invalid credentials return 401 with `errors.InvalidCredentials`. Passwords are n
 Authorization is required by default for new API endpoints, including future library, queue and playback APIs.
 Only auth, health, the API 404 handler and the SPA fallback are explicitly anonymous.
 Do not apply `AllowAnonymous` to future data endpoints; derive ownership from the authenticated user ID,
-not a client-supplied ID. Queue/player display the synchronized personal queue; playback controls are a later stage.
+not a client-supplied ID. The queue page provides search and queue controls; both pages display the synchronized current song.
+Video playback is a later stage.
 The frontend verifies `/api/auth/me` before rendering `/queue` or `/player`.
 
 ## Library and personal queues
@@ -64,7 +65,8 @@ Scan failures are logged and retried on the next pass without stopping the web s
 Currently supported files are `.mp4`; use `Artist - Title.mp4` for artist/title metadata.
 To avoid indexing a partially copied file, copy it with a temporary extension and rename it to `.mp4`
 when the transfer completes. No desktop application or server restart is needed for new songs.
-The API exposes search; queue/player screens display the synchronized personal queue.
+The queue page supports song search, adding, removing, moving up/down and selecting a current song.
+The selection is synchronized across devices; video playback is a later stage.
 
 Configure `Library:SongsPath` (environment variable `Library__SongsPath`) to change the directory;
 relative paths resolve against the web application's content root, not the shell working directory.
@@ -91,6 +93,8 @@ All catalog endpoints require authentication:
 - `DELETE /api/queue/{id}`: remove a queue entry.
 - `POST /api/queue/{id}/move` with `{ "offset": -1 }`: move relative to its current position,
   clamping to the first/last position.
+- `POST /api/queue/{id}/play`: select the current queue entry without changing its position.
+  Selection resets on server restart and clears when the entry is removed; this stage does not start video.
 
 Mutations require `X-CSRF-TOKEN` obtained as described above and return 204. Missing songs return 404;
 invalid input returns 400. Deleting/moving missing or foreign queue entries is a no-op returning 204,

@@ -10,7 +10,10 @@ public sealed class SynchronizedPlaybackQueue(string userId, IPlaybackQueueServi
         queue.InitializeAsync(cancellationToken);
 
     public Task<QueueSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default) =>
-        coordinator.ReadAsync(queue, cancellationToken);
+        coordinator.ReadAsync(userId, queue, cancellationToken);
+
+    public ValueTask PlayNowAsync(Guid queueItemId, CancellationToken cancellationToken = default) =>
+        coordinator.PlayNowAsync(userId, queue, queueItemId, cancellationToken);
 
     public async ValueTask<IReadOnlyList<PlaybackQueueItem>> GetItemsAsync(CancellationToken cancellationToken = default) =>
         (await GetSnapshotAsync(cancellationToken)).Items;

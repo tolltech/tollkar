@@ -1,7 +1,8 @@
 # Real-time queue synchronization
 
 The queue and player pages share one authenticated SignalR connection per application layout.
-They display the current queue; search controls and playback commands are separate stages.
+The queue page supports catalog search, add/remove/reorder and selecting a current song.
+Both pages display the current selection; video playback remains a separate stage.
 The existing HTTP queue API and CSRF requirements are unchanged.
 
 ## Protocol
@@ -10,7 +11,7 @@ The existing HTTP queue API and CSRF requirements are unchanged.
 - The server joins the connection to `karaoke:{UserId}` using the authenticated name-identifier
   claim. Clients cannot select a user or join groups themselves.
 - After connection/start and every reconnect, invoke `GetSnapshot` without arguments.
-- `GetSnapshot` returns `{ version, items }`; `items` has the same shape as `GET /api/queue`.
+- `GetSnapshot` returns `{ version, items, currentItemId }`; `items` has the same shape as `GET /api/queue`.
 - `QueueChanged` sends that full snapshot to the affected user's connections after an HTTP queue
   mutation. Versions can have gaps; full snapshots mean no delta replay is needed.
 - `QueueInvalidated` has no arguments or user data. A library refresh broadcasts it to authenticated
@@ -48,3 +49,18 @@ Web integration tests exercise the SignalR JSON protocol over in-memory TestServ
 user isolation, multiple devices, add/move/delete events, concurrent versions, reconnect recovery,
 library deletion invalidation and anonymous rejection. Frontend tests cover stale/duplicate snapshots
 and responses from earlier connection generations, including a server version reset.
+
+## Queue controls
+
+`POST /api/queue/{id}/play` selects that queue entry as current without reordering or removing songs.
+It requires authentication and CSRF like other mutations. Missing/foreign entries are no-ops; an empty
+GUID is invalid. Selection is isolated per user and included in versioned snapshots on all devices.
+Duplicate songs are distinguished by queue entry ID. Moving a selected entry preserves selection;
+removing it (including a catalog deletion) clears selection. Selection is held in server memory and
+resets on server restart, while queue ordering persists in SQLite. No migration is needed.
+This stage selects a song for the player; it does not start video or report confirmed playback.
+
+The UI debounces prefix searches by 300 ms, cancels obsolete requests and displays up to 100 results.
+Mutation buttons are disabled during a request or connection recovery. Errors do not optimistically
+change the queue or retry mutations (an interrupted request may already have committed).
+Responsive panels stack on narrow screens, with labelled controls and touch targets of at least 44 px.

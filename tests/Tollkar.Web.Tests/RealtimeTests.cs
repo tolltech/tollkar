@@ -73,6 +73,55 @@ public sealed class RealtimeTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CurrentSongIsSharedAcrossDevicesAndCannotSelectAnotherUsersItem()
+    {
+        var (alice, cookie) = await RegisterAsync("Alice");
+        using var session = alice;
+        var (bob, bobCookie) = await RegisterAsync("Bob");
+        using var otherSession = bob;
+        using var first = await ConnectAsync(cookie);
+        using var second = await ConnectAsync(cookie);
+        await MutateAsync(alice, HttpMethod.Post, "/api/queue", new { songId });
+        var item = Assert.Single((await first.ChangedAsync()).Items);
+        await second.ChangedAsync();
+        await MutateAsync(alice, HttpMethod.Post, "/api/queue", new { songId });
+        var duplicate = (await first.ChangedAsync()).Items[1];
+        await second.ChangedAsync();
+
+        await MutateAsync(alice, HttpMethod.Post, $"/api/queue/{duplicate.Id}/play");
+        var playing = await first.ChangedAsync();
+        Assert.Equal(duplicate.Id, playing.CurrentItemId);
+        Assert.Equal(duplicate.Id, (await second.ChangedAsync()).CurrentItemId);
+        Assert.Equal(item.Id, playing.Items[0].Id);
+        using var restored = await ConnectAsync(cookie);
+        Assert.Equal(duplicate.Id, (await restored.SnapshotAsync()).CurrentItemId);
+
+        await MutateAsync(bob, HttpMethod.Post, $"/api/queue/{duplicate.Id}/play");
+        using var bobConnection = await ConnectAsync(bobCookie);
+        Assert.Null((await bobConnection.SnapshotAsync()).CurrentItemId);
+        Assert.Equal(duplicate.Id, (await first.SnapshotAsync()).CurrentItemId);
+
+        await MutateAsync(alice, HttpMethod.Post, $"/api/queue/{duplicate.Id}/move", new { offset = -1 });
+        Assert.Equal(duplicate.Id, (await first.ChangedAsync()).CurrentItemId);
+        await MutateAsync(alice, HttpMethod.Delete, $"/api/queue/{duplicate.Id}");
+        var removed = await first.ChangedAsync();
+        Assert.Null(removed.CurrentItemId);
+        Assert.Equal(item.Id, Assert.Single(removed.Items).Id);
+    }
+
+    [Fact]
+    public async Task PlayRequiresAuthenticationAndCsrf()
+    {
+        using var anonymous = application.CreateSession();
+        using var unauthorized = await anonymous.PostAsync($"/api/queue/{Guid.NewGuid()}/play", null);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+        var (alice, _) = await RegisterAsync("Alice");
+        using var session = alice;
+        using var invalid = await alice.PostAsync($"/api/queue/{Guid.NewGuid()}/play", null);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
+    [Fact]
     public async Task ReconnectingRestoresMissedChangesAndRejoinsUserGroup()
     {
         var (client, cookie) = await RegisterAsync("Alice");
@@ -125,12 +174,15 @@ public sealed class RealtimeTests : IAsyncLifetime
         await connection.SnapshotAsync();
         await MutateAsync(client, HttpMethod.Post, "/api/queue", new { songId });
         var before = await connection.ChangedAsync();
+        await MutateAsync(client, HttpMethod.Post, $"/api/queue/{before.Items[0].Id}/play");
+        Assert.NotNull((await connection.ChangedAsync()).CurrentItemId);
         File.Delete(Path.Combine(directory, "Artist - Song.mp4"));
         var library = application.Services.GetRequiredService<ILibraryService>();
         await foreach (var _ in library.RefreshRootAsync(rootId)) { }
         await connection.InvalidatedAsync();
         var after = await connection.SnapshotAsync();
         Assert.Empty(after.Items);
+        Assert.Null(after.CurrentItemId);
         Assert.True(after.Version > before.Version);
     }
 

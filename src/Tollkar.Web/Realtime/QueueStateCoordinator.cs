@@ -8,15 +8,37 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<Q
 {
     private readonly SemaphoreSlim gate = new(1, 1);
     private long version;
+    private readonly Dictionary<string, Guid> currentItems = new();
 
-    public async Task<QueueSnapshot> ReadAsync(IPlaybackQueueService queue, CancellationToken cancellationToken)
+    public async Task<QueueSnapshot> ReadAsync(string userId, IPlaybackQueueService queue, CancellationToken cancellationToken)
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
-            return new(version, await queue.GetItemsAsync(cancellationToken));
+            return await CaptureAsync(userId, queue, cancellationToken);
         }
         finally { gate.Release(); }
+    }
+
+    public ValueTask PlayNowAsync(string userId, IPlaybackQueueService queue, Guid queueItemId,
+        CancellationToken cancellationToken) =>
+        MutateAsync(userId, queue, async token =>
+        {
+            var items = await queue.GetItemsAsync(token);
+            if (items.Any(item => item.Id == queueItemId)) currentItems[userId] = queueItemId;
+        }, cancellationToken);
+
+    private async Task<QueueSnapshot> CaptureAsync(string userId, IPlaybackQueueService queue,
+        CancellationToken cancellationToken)
+    {
+        var items = await queue.GetItemsAsync(cancellationToken);
+        Guid? currentId = currentItems.TryGetValue(userId, out var id) ? id : null;
+        if (currentId is not null && !items.Any(item => item.Id == currentId))
+        {
+            currentItems.Remove(userId);
+            currentId = null;
+        }
+        return new(version, items, currentId);
     }
 
     public async ValueTask MutateAsync(string userId, IPlaybackQueueService queue,
@@ -31,7 +53,7 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<Q
             // Once committed, client cancellation must not prevent notifying other connections.
             try
             {
-                snapshot = new QueueSnapshot(version, await queue.GetItemsAsync(CancellationToken.None));
+                snapshot = await CaptureAsync(userId, queue, CancellationToken.None);
             }
             catch (Exception exception)
             {

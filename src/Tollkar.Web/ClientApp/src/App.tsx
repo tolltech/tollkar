@@ -6,6 +6,7 @@ import { submitAuth, type User } from './auth/api'
 import './App.css'
 import { useQueue } from './queue/useQueue'
 import { QueueState } from './queue/QueueState'
+import { QueuePage } from './queue/QueuePage'
 
 function App() {
   return (
@@ -60,22 +61,6 @@ function AppLayout() {
         <Outlet context={queue} />
       </main>
     </div>
-  )
-}
-
-function QueuePage() {
-  return (
-    <section className="page queue-page" aria-labelledby="queue-title">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">Пульт управления</p>
-          <h1 id="queue-title">Очередь караоке</h1>
-          <p className="page-description">Очередь автоматически обновляется на всех ваших устройствах.</p>
-        </div>
-        <NavLink className="secondary-button" to="/player">Открыть плеер</NavLink>
-      </div>
-      <QueueState />
-    </section>
   )
 }
 

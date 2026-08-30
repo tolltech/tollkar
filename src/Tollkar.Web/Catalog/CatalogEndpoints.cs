@@ -3,6 +3,7 @@ using Tollkar.Application.Library;
 using Tollkar.Application.Library.Models;
 using Tollkar.Application.Queue;
 using Tollkar.Web.Authentication;
+using Tollkar.Web.Realtime;
 
 namespace Tollkar.Web.Catalog;
 
@@ -22,6 +23,13 @@ public static class CatalogEndpoints
         queue.MapGet("/", async (IPlaybackQueueService service, CancellationToken cancellationToken) =>
             Results.Ok(await service.GetItemsAsync(cancellationToken)));
         queue.MapPost("/", AddAsync).AddEndpointFilter<ValidateAuthRequest>();
+        queue.MapPost("/{id:guid}/play", async (Guid id, SynchronizedPlaybackQueue service,
+            CancellationToken cancellationToken) =>
+        {
+            if (id == Guid.Empty) return Invalid("Id", "Укажите элемент очереди.");
+            await service.PlayNowAsync(id, cancellationToken);
+            return Results.NoContent();
+        }).AddEndpointFilter<ValidateAuthRequest>();
         queue.MapDelete("/{id:guid}", async (Guid id, IPlaybackQueueService service,
             CancellationToken cancellationToken) =>
         {
