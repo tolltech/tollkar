@@ -4,6 +4,8 @@
 _tmp/
 **/bin/
 **/obj/
+**/node_modules/
+src/Tollkar.Web/wwwroot/
 .idea/
 .vscode/
 *.DotSettings.user

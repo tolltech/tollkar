@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tollkar.Infrastructure.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tollkar.App.Tests", "tests\Tollkar.App.Tests\Tollkar.App.Tests.csproj", "{F26549BA-A315-4C87-A028-E8F7029CA361}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tollkar.Web", "src\Tollkar.Web\Tollkar.Web.csproj", "{5239F19A-B253-4BE9-82DB-63DA70C5A925}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,6 +63,10 @@ Global
 		{F26549BA-A315-4C87-A028-E8F7029CA361}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F26549BA-A315-4C87-A028-E8F7029CA361}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F26549BA-A315-4C87-A028-E8F7029CA361}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5239F19A-B253-4BE9-82DB-63DA70C5A925}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5239F19A-B253-4BE9-82DB-63DA70C5A925}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5239F19A-B253-4BE9-82DB-63DA70C5A925}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5239F19A-B253-4BE9-82DB-63DA70C5A925}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -74,5 +80,6 @@ Global
 		{48098FEC-90B4-4DDB-84C1-3F60BD7F4D11} = {4CB02753-6BBE-48A6-95F7-BAEDD84A420D}
 		{098DE651-61F9-487C-B129-87CD348DFA42} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{F26549BA-A315-4C87-A028-E8F7029CA361} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{5239F19A-B253-4BE9-82DB-63DA70C5A925} = {4CB02753-6BBE-48A6-95F7-BAEDD84A420D}
 	EndGlobalSection
 EndGlobal
