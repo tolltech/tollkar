@@ -13,7 +13,7 @@ export function QueueState() {
     <section className="current-song" aria-label="Текущая песня">
       <p className="eyebrow">Текущая песня</p>
       {current ? <SongDetails song={current} /> : <p>{snapshot ? 'Песня не выбрана. Нажмите «Играть сейчас» в очереди.' : 'Загружаем очередь…'}</p>}
-      <p className="queue-hint">Выбор синхронизируется с плеером. Воспроизведение видео появится на следующем этапе.</p>
+      <p className="queue-hint">Выбор, пауза и позиция воспроизведения синхронизируются на всех ваших устройствах.</p>
     </section>
   </div>
 }

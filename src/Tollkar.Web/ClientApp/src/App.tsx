@@ -5,7 +5,7 @@ import { RequireUser } from './auth/RequireUser'
 import { submitAuth, type User } from './auth/api'
 import './App.css'
 import { useQueue } from './queue/useQueue'
-import { QueueState } from './queue/QueueState'
+import { PlayerPage } from './player/PlayerPage'
 import { QueuePage } from './queue/QueuePage'
 
 function App() {
@@ -61,22 +61,6 @@ function AppLayout() {
         <Outlet context={queue} />
       </main>
     </div>
-  )
-}
-
-function PlayerPage() {
-  return (
-    <section className="page player-page" aria-labelledby="player-title">
-      <div className="player-stage">
-        <div className="player-placeholder" aria-hidden="true">▶</div>
-        <div className="player-copy">
-          <p className="eyebrow">Экран воспроизведения</p>
-          <h1 id="player-title">Готов к подключению</h1>
-          <p>Видео и синхронизированные команды появятся на следующих этапах.</p>
-        </div>
-      </div>
-      <QueueState />
-    </section>
   )
 }
 

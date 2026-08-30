@@ -194,6 +194,41 @@ public sealed class RealtimeTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task PlaybackCommandsAreSharedRecoverableAndProtected()
+    {
+        var (alice, cookie) = await RegisterAsync("Alice");
+        using var session = alice;
+        var (bob, _) = await RegisterAsync("Bob");
+        using var otherSession = bob;
+        using var first = await ConnectAsync(cookie);
+        using var second = await ConnectAsync(cookie);
+        await MutateAsync(alice, HttpMethod.Post, "/api/queue", new { songId });
+        var item = Assert.Single((await first.ChangedAsync()).Items);
+        await second.ChangedAsync();
+        await MutateAsync(alice, HttpMethod.Post, $"/api/queue/{item.Id}/play");
+        var playing = (await first.ChangedAsync()).Playback!;
+        Assert.True(playing.IsPlaying);
+        Assert.Equal(playing.Revision, (await second.ChangedAsync()).Playback!.Revision);
+        await MutateAsync(bob, HttpMethod.Post, "/api/queue/playback", new PlaybackCommand("pause", playing.Revision));
+        Assert.True((await first.SnapshotAsync()).Playback!.IsPlaying);
+        using var noCsrf = await alice.PostAsJsonAsync("/api/queue/playback", new PlaybackCommand("pause", playing.Revision));
+        Assert.Equal(HttpStatusCode.BadRequest, noCsrf.StatusCode);
+        await MutateAsync(alice, HttpMethod.Post, "/api/queue/playback", new PlaybackCommand("pause", playing.Revision));
+        var paused = (await first.ChangedAsync()).Playback!;
+        Assert.False((await second.ChangedAsync()).Playback!.IsPlaying);
+        await MutateAsync(alice, HttpMethod.Post, "/api/queue/playback", new PlaybackCommand("seek", paused.Revision, 75));
+        var sought = (await first.ChangedAsync()).Playback!;
+        Assert.Equal(75, (await second.ChangedAsync()).Playback!.PositionSeconds);
+        using var restored = await ConnectAsync(cookie);
+        Assert.Equal(sought, (await restored.SnapshotAsync()).Playback);
+        using var invalid = await SendAsync(alice, HttpMethod.Post, "/api/queue/playback", new PlaybackCommand("seek", sought.Revision, -1));
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using var anonymous = application.CreateSession();
+        using var unauthorized = await anonymous.PostAsJsonAsync("/api/queue/playback", new PlaybackCommand("play", sought.Revision));
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
+    }
+
     private async Task<(HttpClient Client, string Cookie)> RegisterAsync(string login)
     {
         var client = application.CreateSession();

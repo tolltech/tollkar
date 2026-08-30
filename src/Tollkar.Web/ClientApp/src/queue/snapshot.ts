@@ -1,5 +1,7 @@
+import type { PlaybackAnchor } from '../player/timeline'
+
 export type QueueItem = { id: string; songId: string; title: string; artist: string | null; position: number }
-export type QueueSnapshot = { version: number; items: QueueItem[]; currentItemId?: string | null }
+export type QueueSnapshot = { version: number; items: QueueItem[]; currentItemId?: string | null; playback?: PlaybackAnchor | null }
 
 export class SnapshotState {
   private generation = 0

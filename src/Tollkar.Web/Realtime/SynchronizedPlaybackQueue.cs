@@ -15,6 +15,9 @@ public sealed class SynchronizedPlaybackQueue(string userId, IPlaybackQueueServi
     public ValueTask PlayNowAsync(Guid queueItemId, CancellationToken cancellationToken = default) =>
         coordinator.PlayNowAsync(userId, queue, queueItemId, cancellationToken);
 
+    public ValueTask ControlAsync(PlaybackCommand command, CancellationToken cancellationToken = default) =>
+        coordinator.ControlAsync(userId, queue, command, cancellationToken);
+
     public async ValueTask<IReadOnlyList<PlaybackQueueItem>> GetItemsAsync(CancellationToken cancellationToken = default) =>
         (await GetSnapshotAsync(cancellationToken)).Items;
 

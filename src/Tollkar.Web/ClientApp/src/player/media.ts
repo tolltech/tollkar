@@ -1,0 +1,15 @@
+import { playbackPosition, type PlaybackAnchor } from './timeline.ts'
+
+type Media = Pick<HTMLMediaElement, 'readyState' | 'duration' | 'currentTime' | 'paused' | 'pause'>
+type MediaActions = { play: () => void; ended: () => void }
+
+export function synchronizeMedia(media: Media, state: PlaybackAnchor, now: number, actions: MediaActions) {
+  if (media.readyState < 1) return
+  const duration = Number.isFinite(media.duration) ? media.duration : Infinity
+  const target = playbackPosition(state, now, duration)
+  if (Math.abs(media.currentTime - target) > 0.75) media.currentTime = target
+  if (!state.isPlaying) { media.pause(); return }
+  // A restored or seeking element need not emit ended; retry safely using the server revision.
+  if (duration > 0 && target >= duration) { actions.ended(); return }
+  if (media.paused) actions.play()
+}

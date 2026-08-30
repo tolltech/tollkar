@@ -51,6 +51,57 @@ public sealed class QueuePublicationTests
         await mutation;
     }
 
+    [Fact]
+    public async Task PlaybackTimelineRestoresAndRejectsDuplicateTransitions()
+    {
+        var clock = new PlaybackClock();
+        using var coordinator = new QueueStateCoordinator(new TestHubContext(new TestClient()),
+            NullLogger<QueueStateCoordinator>.Instance, clock);
+        var queue = new TestQueue();
+        var service = new SynchronizedPlaybackQueue("alice", queue, coordinator);
+        for (var i = 0; i < 3; i++) await service.AddAsync(Guid.NewGuid());
+        await service.PlayNowAsync(queue.Items[0].Id);
+        clock.Advance(12);
+        var playing = (await service.GetSnapshotAsync()).Playback!;
+        Assert.True(playing.IsPlaying);
+        Assert.Equal(12, playing.PositionSeconds);
+        await service.ControlAsync(new("pause", playing.Revision));
+        clock.Advance(10);
+        var paused = (await service.GetSnapshotAsync()).Playback!;
+        Assert.False(paused.IsPlaying);
+        Assert.Equal(12, paused.PositionSeconds);
+        await service.ControlAsync(new("seek", paused.Revision, 42));
+        var sought = (await service.GetSnapshotAsync()).Playback!;
+        Assert.Equal(42, sought.PositionSeconds);
+        Assert.False(sought.IsPlaying);
+        await service.ControlAsync(new("play", sought.Revision));
+        clock.Advance(3);
+        var restored = await new SynchronizedPlaybackQueue("alice", queue, coordinator).GetSnapshotAsync();
+        Assert.Equal(45, restored.Playback!.PositionSeconds);
+        var ended = new PlaybackCommand("ended", restored.Playback.Revision);
+        await Task.WhenAll(service.ControlAsync(ended).AsTask(), service.ControlAsync(ended).AsTask());
+        var next = await service.GetSnapshotAsync();
+        Assert.Equal(queue.Items[1].Id, next.CurrentItemId);
+        Assert.Equal(0, next.Playback!.PositionSeconds);
+        await service.ControlAsync(new("seek", restored.Playback.Revision, 500));
+        Assert.Equal(next.Playback, (await service.GetSnapshotAsync()).Playback);
+        await service.ControlAsync(new("next", next.Playback.Revision));
+        var last = await service.GetSnapshotAsync();
+        await service.ControlAsync(new("ended", last.Playback!.Revision));
+        var finished = await service.GetSnapshotAsync();
+        Assert.Null(finished.CurrentItemId);
+        Assert.Null(finished.Playback);
+        Assert.Equal(3, finished.Items.Count);
+    }
+
+    private sealed class PlaybackClock : TimeProvider
+    {
+        private long timestamp;
+        public override long TimestampFrequency => 1000;
+        public override long GetTimestamp() => timestamp;
+        public void Advance(int seconds) => timestamp += seconds * 1000;
+    }
+
     private sealed class TestQueue : IPlaybackQueueService
     {
         public List<PlaybackQueueItem> Items { get; } = [];

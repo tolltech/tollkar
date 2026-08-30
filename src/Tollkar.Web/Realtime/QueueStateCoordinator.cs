@@ -3,12 +3,59 @@ using Tollkar.Application.Queue;
 
 namespace Tollkar.Web.Realtime;
 
-public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<QueueStateCoordinator> logger)
+public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<QueueStateCoordinator> logger,
+    TimeProvider? timeProvider = null)
     : IDisposable
 {
     private readonly SemaphoreSlim gate = new(1, 1);
     private long version;
     private readonly Dictionary<string, Guid> currentItems = new();
+    private readonly Dictionary<string, PlaybackTimeline> playback = new();
+    private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
+
+    private sealed record PlaybackTimeline(long Revision, bool IsPlaying, double PositionSeconds, long Timestamp);
+
+    private double Position(PlaybackTimeline state) => state.PositionSeconds +
+        (state.IsPlaying ? clock.GetElapsedTime(state.Timestamp).TotalSeconds : 0);
+
+    private void SetPlayback(string userId, bool isPlaying, double position) =>
+        playback[userId] = new(version + 1, isPlaying, position, clock.GetTimestamp());
+
+    public ValueTask ControlAsync(string userId, IPlaybackQueueService queue, PlaybackCommand command,
+        CancellationToken cancellationToken) =>
+        MutateAsync(userId, queue, async token =>
+        {
+            var snapshot = await CaptureAsync(userId, queue, token);
+            if (snapshot.CurrentItemId is null || !playback.TryGetValue(userId, out var state)
+                || state.Revision != command.Revision) return;
+            switch (command.Action)
+            {
+                case "play":
+                    SetPlayback(userId, true, Position(state));
+                    break;
+                case "pause":
+                    SetPlayback(userId, false, Position(state));
+                    break;
+                case "seek":
+                    SetPlayback(userId, state.IsPlaying, command.PositionSeconds);
+                    break;
+                case "next":
+                case "ended":
+                    if (command.Action == "ended" && !state.IsPlaying) return;
+                    var next = snapshot.Items.SkipWhile(item => item.Id != snapshot.CurrentItemId).Skip(1).FirstOrDefault();
+                    if (next is null)
+                    {
+                        currentItems.Remove(userId);
+                        playback.Remove(userId);
+                    }
+                    else
+                    {
+                        currentItems[userId] = next.Id;
+                        SetPlayback(userId, true, 0);
+                    }
+                    break;
+            }
+        }, cancellationToken);
 
     public async Task<QueueSnapshot> ReadAsync(string userId, IPlaybackQueueService queue, CancellationToken cancellationToken)
     {
@@ -25,7 +72,11 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<Q
         MutateAsync(userId, queue, async token =>
         {
             var items = await queue.GetItemsAsync(token);
-            if (items.Any(item => item.Id == queueItemId)) currentItems[userId] = queueItemId;
+            if (items.Any(item => item.Id == queueItemId))
+            {
+                currentItems[userId] = queueItemId;
+                SetPlayback(userId, true, 0);
+            }
         }, cancellationToken);
 
     private async Task<QueueSnapshot> CaptureAsync(string userId, IPlaybackQueueService queue,
@@ -36,9 +87,12 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<Q
         if (currentId is not null && !items.Any(item => item.Id == currentId))
         {
             currentItems.Remove(userId);
+            playback.Remove(userId);
             currentId = null;
         }
-        return new(version, items, currentId);
+        var state = playback.TryGetValue(userId, out var timeline)
+            ? new PlaybackSnapshot(timeline.Revision, timeline.IsPlaying, Position(timeline)) : null;
+        return new(version, items, currentId, state);
     }
 
     public async ValueTask MutateAsync(string userId, IPlaybackQueueService queue,

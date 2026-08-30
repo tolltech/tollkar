@@ -20,7 +20,7 @@ export function useQueue(userId: string) {
       .build()
 
     function apply(value: QueueSnapshot, sourceGeneration: number) {
-      if (!disposed && state.accept(value, sourceGeneration)) setSnapshot(value)
+      if (!disposed && state.accept(value, sourceGeneration)) setSnapshot({ ...value, playback: value.playback ? { ...value.playback, receivedAt: performance.now() } : null })
     }
 
     async function restore() {

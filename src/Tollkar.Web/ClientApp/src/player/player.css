@@ -1,0 +1,13 @@
+.web-player { background: #080710; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; position: relative; }
+.web-player video { aspect-ratio: 16 / 9; display: block; object-fit: contain; width: 100%; }
+.player-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; padding: 16px; }
+.player-controls button, .player-activation { min-height: 44px; }
+.player-seek { align-items: center; display: flex; flex: 1 1 220px; gap: 12px; }
+.player-seek input { flex: 1; min-height: 44px; min-width: 80px; }
+.player-time { font-variant-numeric: tabular-nums; }
+.player-empty { left: 0; padding: 20px; position: absolute; text-align: center; top: 20%; width: 100%; }
+.player-activation { margin: 0 16px 16px; }
+.player-error { margin: 0; padding: 16px; }
+.web-player:fullscreen { border: 0; border-radius: 0; display: flex; flex-direction: column; height: 100%; width: 100%; }
+.web-player:fullscreen video { flex: 1; min-height: 0; }
+@media (max-width: 640px) { .player-controls button { flex: 1; } .player-seek { flex-basis: 100%; } }

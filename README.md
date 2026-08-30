@@ -45,7 +45,7 @@ Authorization is required by default for new API endpoints, including future lib
 Only auth, health, the API 404 handler and the SPA fallback are explicitly anonymous.
 Do not apply `AllowAnonymous` to future data endpoints; derive ownership from the authenticated user ID,
 not a client-supplied ID. The queue page provides search and queue controls; both pages display the synchronized current song.
-Video playback is a later stage.
+The player streams HTML5 video with synchronized playback controls.
 The frontend verifies `/api/auth/me` before rendering `/queue` or `/player`.
 
 ## Library and personal queues
@@ -66,7 +66,7 @@ Currently supported files are `.mp4`; use `Artist - Title.mp4` for artist/title 
 To avoid indexing a partially copied file, copy it with a temporary extension and rename it to `.mp4`
 when the transfer completes. No desktop application or server restart is needed for new songs.
 The queue page supports song search, adding, removing, moving up/down and selecting a current song.
-The selection is synchronized across devices; video playback is a later stage.
+Selection and playback are synchronized across devices.
 
 Configure `Library:SongsPath` (environment variable `Library__SongsPath`) to change the directory;
 relative paths resolve against the web application's content root, not the shell working directory.
@@ -94,7 +94,7 @@ All catalog endpoints require authentication:
 - `POST /api/queue/{id}/move` with `{ "offset": -1 }`: move relative to its current position,
   clamping to the first/last position.
 - `POST /api/queue/{id}/play`: select the current queue entry without changing its position.
-  Selection resets on server restart and clears when the entry is removed; this stage does not start video.
+  Starts the selected song from zero on connected players. Selection resets on server restart and clears when the entry is removed.
 
 Mutations require `X-CSRF-TOKEN` obtained as described above and return 204. Missing songs return 404;
 invalid input returns 400. Deleting/moving missing or foreign queue entries is a no-op returning 204,
@@ -126,9 +126,24 @@ return 404 without exposing local paths. The songs root itself must not be a sym
 Keep this directory outside `wwwroot` and do not expose it through a reverse proxy's static-file route.
 The directory, its ancestors and catalog database must be writable only by trusted server operators:
 path checks are not a sandbox against a local process replacing filesystem entries concurrently.
-The player UI will connect to this endpoint in a later stage; this stage adds only the streaming API.
+The player UI uses this endpoint directly with the browser session cookie.
 
 ## Real-time synchronization
 
 See [the SignalR protocol and deployment notes](docs/realtime.md) for queue events, snapshot recovery,
 state versions and single-process deployment limits.
+
+## Web player
+
+Open `/player` after selecting a song in the queue. HTML5 video starts muted; the first pointer or
+keyboard action enables audio. If the browser requires an explicit playback gesture, use the displayed
+activation button. Audio permission is local to each page and must be enabled again after reload.
+Play/pause, next and seeking update all connected players for the same user. Fullscreen and sound
+activation are local controls; fullscreen requires browser support. MP4 codecs must be supported by
+the browser (a playable container alone does not guarantee codec support).
+
+The server keeps a monotonic playback timeline; reloading or reconnecting restores the selected song,
+position and play/pause state. During connection recovery the browser pauses until a fresh snapshot
+arrives. An active player advances to the next queue entry at the end; the last entry clears selection
+without deleting the queue. If all players are closed, advancement waits until a player returns.
+Server restart resets playback; persisted queue entries remain. See [the protocol](docs/realtime.md).

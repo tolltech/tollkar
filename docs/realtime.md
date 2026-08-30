@@ -2,7 +2,7 @@
 
 The queue and player pages share one authenticated SignalR connection per application layout.
 The queue page supports catalog search, add/remove/reorder and selecting a current song.
-Both pages display the current selection; video playback remains a separate stage.
+Both pages display the current selection; the player streams and synchronizes HTML5 video.
 The existing HTTP queue API and CSRF requirements are unchanged.
 
 ## Protocol
@@ -11,7 +11,7 @@ The existing HTTP queue API and CSRF requirements are unchanged.
 - The server joins the connection to `karaoke:{UserId}` using the authenticated name-identifier
   claim. Clients cannot select a user or join groups themselves.
 - After connection/start and every reconnect, invoke `GetSnapshot` without arguments.
-- `GetSnapshot` returns `{ version, items, currentItemId }`; `items` has the same shape as `GET /api/queue`.
+- `GetSnapshot` returns `{ version, items, currentItemId, playback }`; `items` has the same shape as `GET /api/queue`.
 - `QueueChanged` sends that full snapshot to the affected user's connections after an HTTP queue
   mutation. Versions can have gaps; full snapshots mean no delta replay is needed.
 - `QueueInvalidated` has no arguments or user data. A library refresh broadcasts it to authenticated
@@ -58,9 +58,37 @@ GUID is invalid. Selection is isolated per user and included in versioned snapsh
 Duplicate songs are distinguished by queue entry ID. Moving a selected entry preserves selection;
 removing it (including a catalog deletion) clears selection. Selection is held in server memory and
 resets on server restart, while queue ordering persists in SQLite. No migration is needed.
-This stage selects a song for the player; it does not start video or report confirmed playback.
+Selecting a song starts its playback timeline at zero. The timeline is desired state, not confirmation that every browser can play the media.
 
 The UI debounces prefix searches by 300 ms, cancels obsolete requests and displays up to 100 results.
 Mutation buttons are disabled during a request or connection recovery. Errors do not optimistically
 change the queue or retry mutations (an interrupted request may already have committed).
 Responsive panels stack on narrow screens, with labelled controls and touch targets of at least 44 px.
+
+## Playback protocol
+
+`playback` is null without a selection, otherwise it contains `revision`, `isPlaying` and
+`positionSeconds` sampled when the snapshot is captured. The server measures elapsed time with
+TimeProvider's monotonic clock. Browsers anchor this position to their own `performance.now()` on
+receipt, avoiding dependence on device clock settings; network delivery latency remains an
+approximation. Drift greater than 750 ms is corrected every second. Buffering does not stop the
+shared timeline, so a recovering player catches up.
+
+`POST /api/queue/playback` accepts `{ action, revision, positionSeconds? }` with authentication and
+CSRF protection. Actions are `play`, `pause`, `seek`, `next`, and `ended`. Seek accepts finite
+positions from zero to 86400 seconds; the browser clamps to the actual media duration. Commands
+apply only to the authenticated user's current playback revision. Every accepted playback change
+creates a new revision; stale commands are no-ops. Queue edits do not change playback revisions.
+This prevents two players reporting completion, or a delayed command, from skipping a song.
+Missing selection and an `ended` command while paused are no-ops. Next follows current queue order;
+at its end selection and playback are cleared while entries remain.
+
+Both the media ended event and periodic duration checks request automatic advancement. Duration
+checks recover a skipped completion during another command or a reload past the end. Only this
+revision-guarded completion is retried automatically; manual mutations retain the existing no-retry
+behavior. Unsupported or missing media displays an error and allows manual next without skipping
+songs silently. Sound activation and fullscreen do not broadcast commands.
+
+Tests cover deterministic timeline progression, pause/seek/reload, duplicate completion, stale
+commands, queue exhaustion, authenticated multi-device events, isolation, CSRF and validation.
+Frontend tests cover position interpolation and advancement after reload/overlapping commands.

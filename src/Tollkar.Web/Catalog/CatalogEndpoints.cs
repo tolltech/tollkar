@@ -22,6 +22,16 @@ public static class CatalogEndpoints
         var queue = app.MapGroup("/api/queue").RequireAuthorization();
         queue.MapGet("/", async (IPlaybackQueueService service, CancellationToken cancellationToken) =>
             Results.Ok(await service.GetItemsAsync(cancellationToken)));
+        queue.MapPost("/playback", async (PlaybackCommand request, SynchronizedPlaybackQueue service,
+            CancellationToken cancellationToken) =>
+        {
+            if (request.Action is not ("play" or "pause" or "seek" or "next" or "ended")
+                || request.Revision < 0 || !double.IsFinite(request.PositionSeconds)
+                || request.PositionSeconds < 0 || request.PositionSeconds > 86400)
+                return Invalid("Playback", "Некорректная команда воспроизведения.");
+            await service.ControlAsync(request, cancellationToken);
+            return Results.NoContent();
+        }).AddEndpointFilter<ValidateAuthRequest>();
         queue.MapPost("/", AddAsync).AddEndpointFilter<ValidateAuthRequest>();
         queue.MapPost("/{id:guid}/play", async (Guid id, SynchronizedPlaybackQueue service,
             CancellationToken cancellationToken) =>
