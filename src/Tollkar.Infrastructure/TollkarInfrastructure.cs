@@ -13,7 +13,9 @@ public static class TollkarInfrastructure
     public static ILibraryService CreateLibraryService(string databasePath)
         => CreateServices(databasePath).Library;
 
-    public static TollkarServices CreateServices(string databasePath)
+    public static TollkarServices CreateServices(string databasePath) => CreateServices(databasePath, "local-desktop");
+
+    public static TollkarServices CreateServices(string databasePath, string userId)
     {
         if (string.IsNullOrWhiteSpace(databasePath))
         {
@@ -27,6 +29,7 @@ public static class TollkarInfrastructure
         var library = new LibraryService(repository, scanner);
         var playbackQueue = new PlaybackQueueService(
             new SqlitePlaybackQueueRepository(databasePath),
+            userId,
             repository.InitializeAsync);
         return new(library, playbackQueue);
     }

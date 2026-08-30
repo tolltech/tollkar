@@ -44,9 +44,38 @@ invalid credentials return 401 with `errors.InvalidCredentials`. Passwords are n
 Authorization is required by default for new API endpoints, including future library, queue and playback APIs.
 Only auth, health, the API 404 handler and the SPA fallback are explicitly anonymous.
 Do not apply `AllowAnonymous` to future data endpoints; derive ownership from the authenticated user ID,
-not a client-supplied ID. Queue/player currently remain UI placeholders: tests verify isolation of identity
-and protected test endpoints, not library or playback data that has not been implemented yet.
+not a client-supplied ID. Queue/player currently remain UI placeholders; the queue API is available.
 The frontend verifies `/api/auth/me` before rendering `/queue` or `/player`.
+
+## Library and personal queues
+
+Set `Library__DatabasePath` to the shared catalog SQLite file (default `tollkar-library.db`, relative to
+the process working directory). It must be separate from the Identity database. To use an existing
+desktop catalog, point this setting at its library file. Index songs through the desktop library UI;
+the web API does not expose filesystem paths or filesystem indexing operations.
+
+The library's existing versioned SQL initializer upgrades schema 3 to 4 transactionally at startup.
+Existing queue entries are preserved with owner `local-desktop`, inaccessible to web users.
+Use the updated desktop application with schema 4; older versions reject this newer schema.
+Identity's EF schema is unchanged. Back up the catalog before upgrading; to roll back, restore the
+backup and use the previous application version (personal queues created after the backup are lost).
+
+All catalog endpoints require authentication:
+
+- `GET /api/library/search?text=Artist&limit=100`: title/artist prefix search, or browse without text;
+  limit is 1–500. Returns metadata only, never local file paths.
+- `GET /api/queue`: current user's ordered queue, including `id`, `songId`, `title`, `artist`,
+  zero-based `position` and `userId`.
+- `POST /api/queue` with `{ "songId": "..." }`: append a library song (duplicates allowed).
+- `DELETE /api/queue/{id}`: remove a queue entry.
+- `POST /api/queue/{id}/move` with `{ "offset": -1 }`: move relative to its current position,
+  clamping to the first/last position.
+
+Mutations require `X-CSRF-TOKEN` obtained as described above and return 204. Missing songs return 404;
+invalid input returns 400. Deleting/moving missing or foreign queue entries is a no-op returning 204,
+so the API does not reveal whether another user's entry exists. Ownership always comes from the
+authenticated session, never query parameters or JSON. Tests use two separate cookie sessions to
+verify read/write isolation, ordering, CSRF protection, and preservation of legacy desktop queues.
 
 ## Validate changes
 

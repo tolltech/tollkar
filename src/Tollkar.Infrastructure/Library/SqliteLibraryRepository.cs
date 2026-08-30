@@ -7,7 +7,7 @@ namespace Tollkar.Infrastructure.Library;
 
 internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRepository
 {
-    private const int SchemaVersion = 3;
+    private const int SchemaVersion = 4;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     private readonly string _connectionString = new SqliteConnectionStringBuilder
@@ -93,6 +93,23 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
                     FOREIGN KEY (SongId) REFERENCES Songs(Id) ON DELETE CASCADE);
                 CREATE INDEX IX_PlaybackQueue_Position ON PlaybackQueue(Position);
                 PRAGMA user_version = 3;
+                """;
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            version = 3;
+        }
+
+        if (version == 3)
+        {
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqliteTransaction)transaction;
+            // Existing entries belong only to the desktop, never to a newly registered web user.
+            command.CommandText = """
+                ALTER TABLE PlaybackQueue ADD COLUMN UserId TEXT NOT NULL DEFAULT 'local-desktop';
+                DROP INDEX IX_PlaybackQueue_Position;
+                CREATE INDEX IX_PlaybackQueue_UserId_Position ON PlaybackQueue(UserId, Position);
+                PRAGMA user_version = 4;
                 """;
             await command.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

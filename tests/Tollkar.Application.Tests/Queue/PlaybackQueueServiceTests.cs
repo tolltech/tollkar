@@ -9,7 +9,7 @@ public sealed class PlaybackQueueServiceTests
     [Fact]
     public async Task RejectsEmptyIdentifiers()
     {
-        var service = new PlaybackQueueService(new StubRepository());
+        var service = new PlaybackQueueService(new StubRepository(), "alice");
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.AddAsync(Guid.Empty).AsTask());
         await Assert.ThrowsAsync<ArgumentException>(() => service.RemoveAsync(Guid.Empty).AsTask());
@@ -18,16 +18,16 @@ public sealed class PlaybackQueueServiceTests
 
     private sealed class StubRepository : IPlaybackQueueRepository
     {
-        public ValueTask<IReadOnlyList<PlaybackQueueItem>> GetItemsAsync(CancellationToken cancellationToken = default) =>
+        public ValueTask<IReadOnlyList<PlaybackQueueItem>> GetItemsAsync(string userId, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<IReadOnlyList<PlaybackQueueItem>>([]);
 
-        public ValueTask AddAsync(Guid queueItemId, Guid songId, CancellationToken cancellationToken = default) =>
+        public ValueTask AddAsync(string userId, Guid queueItemId, Guid songId, CancellationToken cancellationToken = default) =>
             ValueTask.CompletedTask;
 
-        public ValueTask RemoveAsync(Guid queueItemId, CancellationToken cancellationToken = default) =>
+        public ValueTask RemoveAsync(string userId, Guid queueItemId, CancellationToken cancellationToken = default) =>
             ValueTask.CompletedTask;
 
-        public ValueTask MoveByAsync(Guid queueItemId, int offset, CancellationToken cancellationToken = default) =>
+        public ValueTask MoveByAsync(string userId, Guid queueItemId, int offset, CancellationToken cancellationToken = default) =>
             ValueTask.CompletedTask;
     }
 }

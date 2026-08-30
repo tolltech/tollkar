@@ -134,6 +134,44 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
         Assert.Equal(0L, await tableCommand.ExecuteScalarAsync());
     }
 
+    [Fact]
+    public async Task VersionThreeQueueIsPreservedForDesktopOnly()
+    {
+        var databasePath = Path.Combine(_directory, "version-three.db");
+        var services = TollkarInfrastructure.CreateServices(databasePath);
+        await services.Library.InitializeAsync();
+        var repository = new SqliteLibraryRepository(databasePath);
+        var root = await repository.AddRootAsync(Path.Combine(_directory, "karaoke"));
+        var songId = await repository.UpsertSongAsync(root.Id,
+            new FileCandidate(Path.Combine(_directory, "song.mp4"), 1, DateTimeOffset.UnixEpoch),
+            "video", 1, new SongMetadata("Song", "Artist", null, SongCapabilities.Video));
+        await services.PlaybackQueue.AddAsync(songId);
+        var original = Assert.Single(await services.PlaybackQueue.GetItemsAsync());
+        await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                DROP INDEX IX_PlaybackQueue_UserId_Position;
+                ALTER TABLE PlaybackQueue DROP COLUMN UserId;
+                CREATE INDEX IX_PlaybackQueue_Position ON PlaybackQueue(Position);
+                PRAGMA user_version = 3;
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        // Simulate a process restart after restoring the old schema, without cached schema metadata.
+        using (var pooled = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = Path.GetFullPath(databasePath), ForeignKeys = true }.ToString()))
+            SqliteConnection.ClearPool(pooled);
+        var reopened = TollkarInfrastructure.CreateServices(databasePath);
+        await reopened.Library.InitializeAsync();
+        await reopened.Library.InitializeAsync();
+        Assert.Equal(original, Assert.Single(await reopened.PlaybackQueue.GetItemsAsync()));
+        Assert.Empty(await TollkarInfrastructure.CreateServices(databasePath, "alice").PlaybackQueue.GetItemsAsync());
+        Assert.Empty(await TollkarInfrastructure.CreateServices(databasePath, "bob").PlaybackQueue.GetItemsAsync());
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))

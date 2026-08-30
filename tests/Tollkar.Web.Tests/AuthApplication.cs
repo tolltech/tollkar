@@ -27,7 +27,8 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
             new Dictionary<string, string?>
             {
-                ["ConnectionStrings:WebDatabase"] = $"Data Source={Path.Combine(directory, "web.db")};Pooling=False"
+                ["ConnectionStrings:WebDatabase"] = $"Data Source={Path.Combine(directory, "web.db")};Pooling=False",
+                ["Library:DatabasePath"] = Path.Combine(directory, "library.db")
             }));
         builder.ConfigureServices(services => services.AddSingleton<IStartupFilter, ProtectedTestEndpoints>());
         if (interceptor is not null)

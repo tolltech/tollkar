@@ -5,4 +5,5 @@ public sealed record PlaybackQueueItem(
     Guid SongId,
     string Title,
     string? Artist,
-    int Position);
+    int Position,
+    string UserId = "local-desktop");
