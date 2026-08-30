@@ -92,3 +92,7 @@ songs silently. Sound activation and fullscreen do not broadcast commands.
 Tests cover deterministic timeline progression, pause/seek/reload, duplicate completion, stale
 commands, queue exhaustion, authenticated multi-device events, isolation, CSRF and validation.
 Frontend tests cover position interpolation and advancement after reload/overlapping commands.
+Media errors, including decode failures after metadata was loaded, prevent timer-based advancement.
+The integration suite also races completion from two players, verifies only one transition, and
+recovers an exhausted queue after disconnect. See [the acceptance checklist](web-workflow.md)
+for browser checks and launch/publication instructions.

@@ -137,7 +137,7 @@ export function PlayerPage() {
         onDurationChange={event => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
         onTimeUpdate={event => setPosition(event.currentTarget.currentTime)}
         onEnded={event => {
-          if (playback?.isPlaying && playbackPosition(playback, performance.now()) >= event.currentTarget.duration - 1)
+          if (!event.currentTarget.error && playback?.isPlaying && playbackPosition(playback, performance.now()) >= event.currentTarget.duration - 1)
             void command('ended')
         }}
         onError={() => { if (current) setError('Видео недоступно или его формат не поддерживается браузером. Можно перейти к следующей песне.') }} />

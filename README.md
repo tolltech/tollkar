@@ -5,6 +5,9 @@ ASP.NET Core + React web application under `src/Tollkar.Web`.
 
 ## Run the web application
 
+See [the launch, publication and end-to-end acceptance guide](docs/web-workflow.md)
+for deployment commands, prerequisites and multi-tab recovery scenarios.
+
 Restore the pinned EF tool and apply the Identity migration before the first run:
 
 ```sh

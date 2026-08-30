@@ -4,8 +4,23 @@ import { synchronizeMedia } from '../src/player/media.ts'
 
 const state = { revision: 4, isPlaying: true, positionSeconds: 42, receivedAt: 1000 }
 function media() {
-  return { currentTime: 0, duration: 30, readyState: 1, paused: true, pause() { this.paused = true } }
+  return { currentTime: 0, duration: 30, readyState: 1, error: null, paused: true, pause() { this.paused = true } }
 }
+
+test('a decode failure after metadata does not silently advance the queue', () => {
+  const video = { ...media(), error: { code: 3 } as MediaError }
+  synchronizeMedia(video, state, 1000, {
+    play() { assert.fail('failed media must not restart') },
+    ended() { assert.fail('failed media requires manual next') },
+  })
+  assert.equal(video.currentTime, 0)
+})
+
+test('missing metadata does not play or advance an unavailable file', () => {
+  synchronizeMedia({ ...media(), readyState: 0 }, state, 1000, {
+    play() { assert.fail('metadata unavailable') }, ended() { assert.fail('metadata unavailable') },
+  })
+})
 
 test('a restored song past its duration advances without waiting for an ended event', () => {
   let transitions = 0

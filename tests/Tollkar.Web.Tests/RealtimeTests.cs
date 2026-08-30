@@ -229,6 +229,54 @@ public sealed class RealtimeTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
     }
 
+    [Fact]
+    public async Task TwoPlayersCompleteOnlyOnceAndRecoverQueueExhaustionAfterDisconnect()
+    {
+        var (alice, cookie) = await RegisterAsync("Alice");
+        using var session = alice;
+        var (bob, bobCookie) = await RegisterAsync("Bob");
+        using var otherSession = bob;
+        using var first = await ConnectAsync(cookie);
+        using var second = await ConnectAsync(cookie);
+        using var other = await ConnectAsync(bobCookie);
+        await MutateAsync(alice, HttpMethod.Post, "/api/queue", new { songId });
+        await first.ChangedAsync();
+        await second.ChangedAsync();
+        await MutateAsync(alice, HttpMethod.Post, "/api/queue", new { songId });
+        var items = (await first.ChangedAsync()).Items;
+        await second.ChangedAsync();
+        await MutateAsync(alice, HttpMethod.Post, $"/api/queue/{items[0].Id}/play");
+        var playing = (await first.ChangedAsync()).Playback!;
+        await second.ChangedAsync();
+
+        var ended = new PlaybackCommand("ended", playing.Revision);
+        await Task.WhenAll(
+            MutateAsync(alice, HttpMethod.Post, "/api/queue/playback", ended),
+            MutateAsync(alice, HttpMethod.Post, "/api/queue/playback", ended));
+        for (var index = 0; index < 2; index++)
+        {
+            Assert.Equal(items[1].Id, (await first.ChangedAsync()).CurrentItemId);
+            Assert.Equal(items[1].Id, (await second.ChangedAsync()).CurrentItemId);
+        }
+        var next = await first.SnapshotAsync();
+        Assert.NotEqual(playing.Revision, next.Playback!.Revision);
+        second.Dispose();
+        await MutateAsync(alice, HttpMethod.Post, "/api/queue/playback",
+            new PlaybackCommand("ended", next.Playback.Revision));
+        var exhausted = await first.ChangedAsync();
+        Assert.Null(exhausted.CurrentItemId);
+        Assert.Null(exhausted.Playback);
+        Assert.Equal(items, exhausted.Items);
+
+        using var restored = await ConnectAsync(cookie);
+        var recovered = await restored.SnapshotAsync();
+        Assert.Null(recovered.CurrentItemId);
+        Assert.Null(recovered.Playback);
+        Assert.Equal(items, recovered.Items);
+        // Bob receives no Alice events, even when two completions race.
+        Assert.Empty((await other.SnapshotAsync()).Items);
+    }
+
     private async Task<(HttpClient Client, string Cookie)> RegisterAsync(string login)
     {
         var client = application.CreateSession();

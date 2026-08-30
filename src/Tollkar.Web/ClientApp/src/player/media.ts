@@ -1,10 +1,10 @@
 import { playbackPosition, type PlaybackAnchor } from './timeline.ts'
 
-type Media = Pick<HTMLMediaElement, 'readyState' | 'duration' | 'currentTime' | 'paused' | 'pause'>
+type Media = Pick<HTMLMediaElement, 'readyState' | 'duration' | 'currentTime' | 'paused' | 'pause' | 'error'>
 type MediaActions = { play: () => void; ended: () => void }
 
 export function synchronizeMedia(media: Media, state: PlaybackAnchor, now: number, actions: MediaActions) {
-  if (media.readyState < 1) return
+  if (media.error || media.readyState < 1) return
   const duration = Number.isFinite(media.duration) ? media.duration : Infinity
   const target = playbackPosition(state, now, duration)
   if (Math.abs(media.currentTime - target) > 0.75) media.currentTime = target
