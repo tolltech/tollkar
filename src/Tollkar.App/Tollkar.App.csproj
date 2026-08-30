@@ -12,14 +12,11 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.20" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.20" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.20" />
+    <PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Tollkar.Application\Tollkar.Application.csproj" />
     <ProjectReference Include="..\Tollkar.Infrastructure\Tollkar.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Platforms/MacOS/**/*.cs" />
   </ItemGroup>
 </Project>

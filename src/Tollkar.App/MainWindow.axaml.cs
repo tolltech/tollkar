@@ -9,6 +9,7 @@ using Tollkar.Application.Queue;
 using Tollkar.Application.Queue.Models;
 using Tollkar.Application.Playback;
 using Tollkar.Application.Playback.Models;
+using Tollkar.App.Playback;
 using Tollkar.Core.Songs;
 using Tollkar.Infrastructure;
 
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
     private readonly ILibraryService _library;
     private readonly IPlaybackQueueService _playbackQueue;
     private readonly IQueuePlayerService? _queuePlayer = null;
+    private readonly LibVlcPlaybackProvider? _playbackProvider;
     private readonly string? _playbackUnavailableMessage;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly TaskCompletionSource _initialization = new(
@@ -34,21 +36,17 @@ public partial class MainWindow : Window
         _library = library ?? throw new ArgumentNullException(nameof(library));
         _playbackQueue = playbackQueue ?? throw new ArgumentNullException(nameof(playbackQueue));
         InitializeComponent();
-        var playbackProvider = OperatingSystem.IsMacOS()
-            ? TollkarInfrastructure.TryCreateFfplayPlaybackProvider()
-            : null;
-        if (playbackProvider is not null)
+        if (LibVlcPlaybackProvider.TryCreate(
+            out var playbackProvider,
+            out _playbackUnavailableMessage))
         {
+            _playbackProvider = playbackProvider;
+            VideoSurfaceHost.Content = playbackProvider!.VideoView;
             var player = TollkarInfrastructure.CreatePlayerService(_library, [playbackProvider]);
             _queuePlayer = TollkarInfrastructure.CreateQueuePlayerService(_playbackQueue, player);
             _queuePlayer.SnapshotChanged += Player_OnSnapshotChanged;
             _queuePlayer.QueueChanged += QueuePlayer_OnQueueChanged;
             _queuePlayer.PlaybackFailed += QueuePlayer_OnPlaybackFailed;
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            _playbackUnavailableMessage =
-                "Для воспроизведения установите ffplay: brew install ffmpeg";
         }
         SearchBox.TextChanged += SearchBox_OnTextChanged;
         Opened += OnOpened;
@@ -60,6 +58,7 @@ public partial class MainWindow : Window
     private async void OnOpened(object? sender, EventArgs eventArgs)
     {
         Opened -= OnOpened;
+        Activate();
         var lifetimeToken = _lifetimeCancellation.Token;
         try
         {
@@ -360,9 +359,16 @@ public partial class MainWindow : Window
 
     private async Task DisposePlaybackAsync()
     {
-        if (_queuePlayer is not null)
+        try
         {
-            await _queuePlayer.DisposeAsync();
+            if (_queuePlayer is not null)
+            {
+                await _queuePlayer.DisposeAsync();
+            }
+        }
+        finally
+        {
+            _playbackProvider?.Dispose();
         }
     }
 
@@ -386,7 +392,8 @@ public partial class MainWindow : Window
         PlayPauseIcon.Data = Geometry.Parse(snapshot.State == Tollkar.Core.Playback.PlaybackState.Playing
             ? "M5,3 L8,3 L8,15 L5,15 Z M11,3 L14,3 L14,15 L11,15 Z"
             : "M5,3 L16,9 L5,15 Z");
-        PlayerVideoPanel.IsVisible = false;
+        PlayerVideoPanel.IsVisible = hasSong && snapshot.State is not
+            (Tollkar.Core.Playback.PlaybackState.Ended or Tollkar.Core.Playback.PlaybackState.Failed);
         UpdateLibraryContentVisibility();
     }
 

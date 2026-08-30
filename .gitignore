@@ -6,3 +6,4 @@ _tmp/
 **/obj/
 .idea/
 .vscode/
+*.DotSettings.user

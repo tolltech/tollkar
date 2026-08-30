@@ -4,7 +4,6 @@ using Tollkar.Application.Playback;
 using Tollkar.Core.Formats;
 using Tollkar.Core.Formats.Video;
 using Tollkar.Infrastructure.Library;
-using Tollkar.Infrastructure.Playback;
 using Tollkar.Infrastructure.Queue;
 
 namespace Tollkar.Infrastructure;
@@ -50,7 +49,4 @@ public static class TollkarInfrastructure
         ArgumentNullException.ThrowIfNull(player);
         return new QueuePlayerService(queue, player);
     }
-
-    public static Tollkar.Core.Playback.ISongPlaybackProvider? TryCreateFfplayPlaybackProvider() =>
-        FfplayPlaybackProvider.TryCreate();
 }
