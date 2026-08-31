@@ -172,6 +172,18 @@ button:disabled { cursor: wait; opacity: 0.6; }
 button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent-light); outline-offset: 3px; }
 .login-card h1 { font-size: clamp(42px, 7vw, 76px); }
 
+.admin-panel {
+  background: rgba(20, 17, 35, 0.84);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  margin-top: 40px;
+  max-width: 580px;
+  padding: clamp(24px, 5vw, 40px);
+}
+
+.admin-panel h2 { margin-bottom: 24px; }
+.admin-notice { color: #8de8bd; overflow-wrap: anywhere; }
+
 @media (max-width: 640px) {
   .app-header, .page-heading { align-items: stretch; flex-direction: column; }
   .app-header { gap: 14px; }

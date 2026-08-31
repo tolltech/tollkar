@@ -35,7 +35,11 @@ public static class AuthenticationServices
             options.Events.OnRedirectToAccessDenied = context => SetStatus(context, StatusCodes.Status403Forbidden);
         });
         builder.Services.AddAuthorization(options =>
-            options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+        {
+            options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+            options.AddPolicy(AdministratorAccount.PolicyName, policy =>
+                policy.RequireAssertion(context => AdministratorAccount.IsAdministrator(context.User)));
+        });
         builder.Services.AddAntiforgery(options =>
         {
             options.HeaderName = "X-CSRF-TOKEN";

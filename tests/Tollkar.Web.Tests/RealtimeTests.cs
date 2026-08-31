@@ -37,9 +37,9 @@ public sealed class RealtimeTests : IAsyncLifetime
     [Fact]
     public async Task ConnectionsReceiveVersionedChangesOnlyForTheirAuthenticatedUser()
     {
-        var (alice, cookie) = await RegisterAsync("Alice");
+        var (alice, cookie) = await LoginAsync("Alice");
         using var aliceSession = alice;
-        var (bob, bobCookie) = await RegisterAsync("Bob");
+        var (bob, bobCookie) = await LoginAsync("Bob");
         using var bobSession = bob;
         using var first = await ConnectAsync(cookie);
         using var second = await ConnectAsync(cookie);
@@ -75,9 +75,9 @@ public sealed class RealtimeTests : IAsyncLifetime
     [Fact]
     public async Task CurrentSongIsSharedAcrossDevicesAndCannotSelectAnotherUsersItem()
     {
-        var (alice, cookie) = await RegisterAsync("Alice");
+        var (alice, cookie) = await LoginAsync("Alice");
         using var session = alice;
-        var (bob, bobCookie) = await RegisterAsync("Bob");
+        var (bob, bobCookie) = await LoginAsync("Bob");
         using var otherSession = bob;
         using var first = await ConnectAsync(cookie);
         using var second = await ConnectAsync(cookie);
@@ -115,7 +115,7 @@ public sealed class RealtimeTests : IAsyncLifetime
         using var anonymous = application.CreateSession();
         using var unauthorized = await anonymous.PostAsync($"/api/queue/{Guid.NewGuid()}/play", null);
         Assert.Equal(HttpStatusCode.Unauthorized, unauthorized.StatusCode);
-        var (alice, _) = await RegisterAsync("Alice");
+        var (alice, _) = await LoginAsync("Alice");
         using var session = alice;
         using var invalid = await alice.PostAsync($"/api/queue/{Guid.NewGuid()}/play", null);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
@@ -124,7 +124,7 @@ public sealed class RealtimeTests : IAsyncLifetime
     [Fact]
     public async Task ReconnectingRestoresMissedChangesAndRejoinsUserGroup()
     {
-        var (client, cookie) = await RegisterAsync("Alice");
+        var (client, cookie) = await LoginAsync("Alice");
         using var session = client;
         using var original = await ConnectAsync(cookie);
         var before = await original.SnapshotAsync();
@@ -143,7 +143,7 @@ public sealed class RealtimeTests : IAsyncLifetime
     [Fact]
     public async Task ConcurrentMutationsPublishIncreasingVersionsWithMatchingSnapshots()
     {
-        var (client, cookie) = await RegisterAsync("Alice");
+        var (client, cookie) = await LoginAsync("Alice");
         using var session = client;
         using var connection = await ConnectAsync(cookie);
         var previous = await connection.SnapshotAsync();
@@ -168,7 +168,7 @@ public sealed class RealtimeTests : IAsyncLifetime
     [Fact]
     public async Task LibraryRefreshInvalidatesQueueAndSnapshotReflectsDeletedSongs()
     {
-        var (client, cookie) = await RegisterAsync("Alice");
+        var (client, cookie) = await LoginAsync("Alice");
         using var session = client;
         using var connection = await ConnectAsync(cookie);
         await connection.SnapshotAsync();
@@ -197,9 +197,9 @@ public sealed class RealtimeTests : IAsyncLifetime
     [Fact]
     public async Task PlaybackCommandsAreSharedRecoverableAndProtected()
     {
-        var (alice, cookie) = await RegisterAsync("Alice");
+        var (alice, cookie) = await LoginAsync("Alice");
         using var session = alice;
-        var (bob, _) = await RegisterAsync("Bob");
+        var (bob, _) = await LoginAsync("Bob");
         using var otherSession = bob;
         using var first = await ConnectAsync(cookie);
         using var second = await ConnectAsync(cookie);
@@ -232,9 +232,9 @@ public sealed class RealtimeTests : IAsyncLifetime
     [Fact]
     public async Task TwoPlayersCompleteOnlyOnceAndRecoverQueueExhaustionAfterDisconnect()
     {
-        var (alice, cookie) = await RegisterAsync("Alice");
+        var (alice, cookie) = await LoginAsync("Alice");
         using var session = alice;
-        var (bob, bobCookie) = await RegisterAsync("Bob");
+        var (bob, bobCookie) = await LoginAsync("Bob");
         using var otherSession = bob;
         using var first = await ConnectAsync(cookie);
         using var second = await ConnectAsync(cookie);
@@ -277,11 +277,12 @@ public sealed class RealtimeTests : IAsyncLifetime
         Assert.Empty((await other.SnapshotAsync()).Items);
     }
 
-    private async Task<(HttpClient Client, string Cookie)> RegisterAsync(string login)
+    private async Task<(HttpClient Client, string Cookie)> LoginAsync(string login)
     {
+        await application.CreateUserAsync(login);
         var client = application.CreateSession();
-        using var response = await SendAsync(client, HttpMethod.Post, "/api/auth/register",
-            new { login, password = "Valid-password-42!" });
+        using var response = await SendAsync(client, HttpMethod.Post, "/api/auth/login",
+            new { login, password = AuthApplication.Password });
         response.EnsureSuccessStatusCode();
         var cookie = response.Headers.GetValues("Set-Cookie")
             .Single(value => value.StartsWith("Tollkar.Auth=", StringComparison.Ordinal)).Split(';')[0];

@@ -14,8 +14,11 @@ public sealed class ConcurrentRegistrationTests
     {
         await using var application = new AuthApplication(new RegistrationBarrier());
         await application.InitializeDatabaseAsync();
+        await application.CreateUserAsync("admin");
         using var first = application.CreateSession();
         using var second = application.CreateSession();
+        await LoginAsync(first);
+        await LoginAsync(second);
         await SetCsrfAsync(first);
         await SetCsrfAsync(second);
         var responses = await Task.WhenAll(
@@ -40,6 +43,16 @@ public sealed class ConcurrentRegistrationTests
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
     }
 
+    private static async Task LoginAsync(HttpClient client)
+    {
+        var csrf = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login");
+        request.Headers.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
+        request.Content = JsonContent.Create(new { login = "admin", password = AuthApplication.Password });
+        using var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+    }
+
     private sealed class RegistrationBarrier : SaveChangesInterceptor
     {
         private readonly TaskCompletionSource ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -48,7 +61,8 @@ public sealed class ConcurrentRegistrationTests
         public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
             InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
-            if (eventData.Context?.ChangeTracker.Entries<TollkarUser>().Any(entry => entry.State == EntityState.Added) == true)
+            if (eventData.Context?.ChangeTracker.Entries<TollkarUser>().Any(entry =>
+                    entry.State == EntityState.Added && entry.Entity.UserName != "admin") == true)
             {
                 // Both Identity uniqueness checks must finish before either insert is allowed.
                 if (Interlocked.Increment(ref arrivals) == 2) ready.TrySetResult();

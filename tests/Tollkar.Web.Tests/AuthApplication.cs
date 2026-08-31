@@ -4,14 +4,17 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Tollkar.Web.Authentication;
 using Tollkar.Web.Persistence;
 
 namespace Tollkar.Web.Tests;
 
 public sealed class AuthApplication : WebApplicationFactory<Program>
 {
+    public const string Password = "Valid-password-42!";
     private readonly SaveChangesInterceptor? interceptor;
     private readonly string directory = Path.Combine(Path.GetTempPath(), "tollkar-auth-" + Guid.NewGuid().ToString("N"));
 
@@ -50,6 +53,14 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
     {
         BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false, HandleCookies = true
     });
+
+    public async Task CreateUserAsync(string login, string password = Password)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<TollkarUser>>();
+        var result = await users.CreateAsync(new TollkarUser { UserName = login }, password);
+        Assert.True(result.Succeeded, string.Join(" ", result.Errors.Select(error => error.Description)));
+    }
 
     public override async ValueTask DisposeAsync()
     {

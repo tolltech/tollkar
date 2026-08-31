@@ -1,4 +1,5 @@
-export async function mutate(path: string, method: 'POST' | 'DELETE', body?: unknown) {
+export async function mutate(path: string, method: 'POST' | 'DELETE', body?: unknown,
+  fallbackMessage = 'Не удалось выполнить запрос. Проверьте состояние очереди перед повторной попыткой.') {
   // Tokens are bound to the current identity, so obtain one for each mutation.
   const tokenResponse = await fetch('/api/auth/csrf', { credentials: 'same-origin' })
   if (!tokenResponse.ok) throw new Error('Не удалось подготовить запрос. Проверьте соединение и войдите снова.')
@@ -12,8 +13,9 @@ export async function mutate(path: string, method: 'POST' | 'DELETE', body?: unk
   if (!response.ok) {
     const problem = await response.json().catch(() => null) as { errors?: Record<string, string[]> } | null
     const message = response.status === 401 ? 'Сессия истекла. Войдите снова.'
+      : response.status === 403 ? 'Недостаточно прав для выполнения действия.'
       : response.status === 404 ? 'Песня больше недоступна. Обновите поиск.'
-      : 'Не удалось выполнить запрос. Проверьте состояние очереди перед повторной попыткой.'
+      : fallbackMessage
     throw new Error(problem?.errors ? Object.values(problem.errors).flat().join(' ') : message)
   }
 }

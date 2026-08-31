@@ -31,7 +31,7 @@ public sealed class MediaTests : IAsyncLifetime
     [Fact]
     public async Task StreamsIndexedVideoWithoutAcceptingClientPaths()
     {
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         using var response = await client.GetAsync($"{MediaUrl}?path=/etc/passwd&filePath=../web.db");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("video/mp4", response.Content.Headers.ContentType?.MediaType);
@@ -50,7 +50,7 @@ public sealed class MediaTests : IAsyncLifetime
     [InlineData("bytes=250-999", 250, 255)]
     public async Task StreamsRequestedRange(string range, int first, int last)
     {
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, MediaUrl);
         request.Headers.Add("Range", range);
         using var response = await client.SendAsync(request);
@@ -64,7 +64,7 @@ public sealed class MediaTests : IAsyncLifetime
     [Fact]
     public async Task UnsatisfiableRangeReturnsFileLength()
     {
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, MediaUrl);
         request.Headers.Add("Range", "bytes=256-");
         using var response = await client.SendAsync(request);
@@ -78,7 +78,7 @@ public sealed class MediaTests : IAsyncLifetime
     [InlineData("bytes=0-1,4-5")]
     public async Task UnsupportedRangesFallBackToWholeVideo(string range)
     {
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, MediaUrl);
         request.Headers.TryAddWithoutValidation("Range", range);
         using var response = await client.SendAsync(request);
@@ -89,7 +89,7 @@ public sealed class MediaTests : IAsyncLifetime
     [Fact]
     public async Task HeadReturnsHeadersWithoutVideo()
     {
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         using var request = new HttpRequestMessage(HttpMethod.Head, MediaUrl);
         using var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -115,7 +115,7 @@ public sealed class MediaTests : IAsyncLifetime
     [Fact]
     public async Task MissingSongsAndDeletedFilesReturnNotFound()
     {
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         Assert.Equal(HttpStatusCode.NotFound,
             (await client.GetAsync($"/api/songs/{Guid.NewGuid()}/media")).StatusCode);
         File.Delete(file);
@@ -129,7 +129,7 @@ public sealed class MediaTests : IAsyncLifetime
     [InlineData("HEAD")]
     public async Task EmptySongIdReturnsNotFound(string method)
     {
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         using var request = new HttpRequestMessage(new HttpMethod(method), $"/api/songs/{Guid.Empty}/media");
         using var response = await client.SendAsync(request);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -143,7 +143,7 @@ public sealed class MediaTests : IAsyncLifetime
         Directory.CreateDirectory(outside);
         await File.WriteAllBytesAsync(Path.Combine(outside, "Outside.mp4"), Video);
         var outsideId = await IndexAsync(outside, "Outside");
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         Assert.Equal(HttpStatusCode.NotFound,
             (await client.GetAsync($"/api/songs/{outsideId}/media")).StatusCode);
     }
@@ -166,7 +166,7 @@ public sealed class MediaTests : IAsyncLifetime
         else
             File.CreateSymbolicLink(file, target);
 
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(MediaUrl)).StatusCode);
     }
 
@@ -176,7 +176,7 @@ public sealed class MediaTests : IAsyncLifetime
     [InlineData("/songs/nested/Artist%20-%20Video.MP4")]
     public async Task PathsDoNotExposeMedia(string url)
     {
-        using var client = await RegisterAsync();
+        using var client = await LoginAsync();
         using var response = await client.GetAsync(url);
         Assert.NotEqual("video/mp4", response.Content.Headers.ContentType?.MediaType);
         Assert.NotEqual(Video, await response.Content.ReadAsByteArrayAsync());
@@ -192,13 +192,14 @@ public sealed class MediaTests : IAsyncLifetime
         return Assert.Single(await library.SearchSongsAsync(new(title))).Id;
     }
 
-    private async Task<HttpClient> RegisterAsync()
+    private async Task<HttpClient> LoginAsync()
     {
+        await application.CreateUserAsync("Viewer");
         var client = application.CreateSession();
         var csrf = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/register");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login");
         request.Headers.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
-        request.Content = JsonContent.Create(new { login = "Viewer", password = "Valid-password-42!" });
+        request.Content = JsonContent.Create(new { login = "Viewer", password = AuthApplication.Password });
         using var response = await client.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return client;

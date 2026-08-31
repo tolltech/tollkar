@@ -14,46 +14,69 @@ public sealed class AuthenticationTests : IAsyncLifetime
     public async Task DisposeAsync() => await application.DisposeAsync();
 
     [Fact]
-    public async Task RegisterCreatesSessionWithSecureCookie()
+    public async Task AdminCreatesUserWithoutReplacingOwnSession()
     {
-        using var client = application.CreateSession();
-        using var response = await PostAsync(client, "register", "Alice");
+        using var admin = await CreateAdminSessionAsync();
+        using var response = await PostAsync(admin, "register", "Alice");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var cookie = Assert.Single(response.Headers.GetValues("Set-Cookie"), value => value.StartsWith("Tollkar.Auth="));
+        Assert.False(response.Headers.TryGetValues("Set-Cookie", out _));
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Alice", created.GetProperty("login").GetString());
+        Assert.False(created.GetProperty("isAdmin").GetBoolean());
+        Assert.False(string.IsNullOrEmpty(created.GetProperty("id").GetString()));
+
+        var current = await admin.GetFromJsonAsync<JsonElement>("/api/auth/me");
+        Assert.Equal("admin", current.GetProperty("login").GetString());
+        Assert.True(current.GetProperty("isAdmin").GetBoolean());
+
+        using var alice = application.CreateSession();
+        using var login = await PostAsync(alice, "login", "ALICE");
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var loggedIn = await login.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(loggedIn.GetProperty("isAdmin").GetBoolean());
+        var cookie = Assert.Single(login.Headers.GetValues("Set-Cookie"),
+            value => value.StartsWith("Tollkar.Auth="));
         Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("samesite=lax", cookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("secure", cookie, StringComparison.OrdinalIgnoreCase);
-        var user = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Alice", user.GetProperty("login").GetString());
-        Assert.False(string.IsNullOrEmpty(user.GetProperty("id").GetString()));
-        Assert.Equal(2, user.EnumerateObject().Count());
-        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me");
-        Assert.Equal(user.GetRawText(), me.GetRawText());
+    }
+
+    [Fact]
+    public async Task RegistrationRequiresAdministrator()
+    {
+        using var anonymous = application.CreateSession();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await PostAsync(anonymous, "register", "Alice")).StatusCode);
+
+        await application.CreateUserAsync("Alice", Password);
+        using var alice = application.CreateSession();
+        (await PostAsync(alice, "login", "Alice")).EnsureSuccessStatusCode();
+        using var forbidden = await PostAsync(alice, "register", "Bob");
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        Assert.Null(forbidden.Headers.Location);
     }
 
     [Fact]
     public async Task DuplicateNormalizedLoginIsRejected()
     {
-        using var first = application.CreateSession();
-        using var second = application.CreateSession();
-        (await PostAsync(first, "register", "Alice")).EnsureSuccessStatusCode();
-        using var response = await PostAsync(second, "register", "aLiCe");
+        using var admin = await CreateAdminSessionAsync();
+        (await PostAsync(admin, "register", "Alice")).EnsureSuccessStatusCode();
+        using var response = await PostAsync(admin, "register", "aLiCe");
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         await AssertErrorAsync(response, "DuplicateUserName");
-        Assert.Equal(HttpStatusCode.Unauthorized, (await second.GetAsync("/api/auth/me")).StatusCode);
     }
 
     [Fact]
     public async Task LoginUsesNormalizedNameAndLogoutClearsSession()
     {
+        await application.CreateUserAsync("Alice", Password);
         using var client = application.CreateSession();
-        (await PostAsync(client, "register", "Alice")).EnsureSuccessStatusCode();
-        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, "logout")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/me")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/queue/test")).StatusCode);
         (await PostAsync(client, "login", "ALICE")).EnsureSuccessStatusCode();
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/auth/me")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/queue/test")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, "logout")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/queue/test")).StatusCode);
     }
 
     [Theory]
@@ -61,9 +84,8 @@ public sealed class AuthenticationTests : IAsyncLifetime
     [InlineData("Unknown", Password)]
     public async Task InvalidLoginDoesNotAuthenticate(string login, string password)
     {
-        using var owner = application.CreateSession();
+        await application.CreateUserAsync("Alice", Password);
         using var client = application.CreateSession();
-        (await PostAsync(owner, "register", "Alice")).EnsureSuccessStatusCode();
         using var response = await PostAsync(client, "login", login, password);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         await AssertErrorAsync(response, "InvalidCredentials");
@@ -88,8 +110,9 @@ public sealed class AuthenticationTests : IAsyncLifetime
     [Fact]
     public async Task ForbiddenDoesNotRedirect()
     {
+        await application.CreateUserAsync("Alice", Password);
         using var client = application.CreateSession();
-        (await PostAsync(client, "register", "Alice")).EnsureSuccessStatusCode();
+        (await PostAsync(client, "login", "Alice")).EnsureSuccessStatusCode();
         using var response = await client.GetAsync("/api/queue/forbidden");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Null(response.Headers.Location);
@@ -98,10 +121,12 @@ public sealed class AuthenticationTests : IAsyncLifetime
     [Fact]
     public async Task SessionsOnlyExposeTheirOwnUser()
     {
+        await application.CreateUserAsync("Alice", Password);
+        await application.CreateUserAsync("Bob", Password);
         using var alice = application.CreateSession();
         using var bob = application.CreateSession();
-        (await PostAsync(alice, "register", "Alice")).EnsureSuccessStatusCode();
-        (await PostAsync(bob, "register", "Bob")).EnsureSuccessStatusCode();
+        (await PostAsync(alice, "login", "Alice")).EnsureSuccessStatusCode();
+        (await PostAsync(bob, "login", "Bob")).EnsureSuccessStatusCode();
         var first = await alice.GetFromJsonAsync<JsonElement>("/api/auth/me");
         var second = await bob.GetFromJsonAsync<JsonElement>("/api/auth/me?id=" + first.GetProperty("id").GetString());
         Assert.Equal("Bob", second.GetProperty("login").GetString());
@@ -118,8 +143,8 @@ public sealed class AuthenticationTests : IAsyncLifetime
     [InlineData("Alice", "weak", "PasswordRequiresNonAlphanumeric")]
     public async Task ValidationErrorsHaveStableJson(string login, string password, string code)
     {
-        using var client = application.CreateSession();
-        using var response = await PostAsync(client, "register", login, password);
+        using var admin = await CreateAdminSessionAsync();
+        using var response = await PostAsync(admin, "register", login, password);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         await AssertErrorAsync(response, code);
     }
@@ -127,8 +152,9 @@ public sealed class AuthenticationTests : IAsyncLifetime
     [Fact]
     public async Task MissingCsrfTokenRejectsMutation()
     {
-        using var client = application.CreateSession();
-        using var response = await client.PostAsJsonAsync("/api/auth/register", new { login = "Alice", password = Password });
+        using var admin = await CreateAdminSessionAsync();
+        using var response = await admin.PostAsJsonAsync("/api/auth/register",
+            new { login = "Alice", password = Password });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         await AssertErrorAsync(response, "Csrf");
     }
@@ -138,12 +164,21 @@ public sealed class AuthenticationTests : IAsyncLifetime
     [InlineData("null")]
     public async Task MalformedJsonUsesValidationContract(string body)
     {
-        using var client = application.CreateSession();
-        var csrf = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
-        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
-        using var response = await client.PostAsync("/api/auth/register", new StringContent(body, Encoding.UTF8, "application/json"));
+        using var admin = await CreateAdminSessionAsync();
+        var csrf = await admin.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
+        admin.DefaultRequestHeaders.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
+        using var response = await admin.PostAsync("/api/auth/register",
+            new StringContent(body, Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         await AssertErrorAsync(response, "Request");
+    }
+
+    private async Task<HttpClient> CreateAdminSessionAsync()
+    {
+        await application.CreateUserAsync("admin", Password);
+        var client = application.CreateSession();
+        (await PostAsync(client, "login", "ADMIN")).EnsureSuccessStatusCode();
+        return client;
     }
 
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string action,
@@ -163,5 +198,4 @@ public sealed class AuthenticationTests : IAsyncLifetime
         Assert.True(json.GetProperty("errors").TryGetProperty(code, out _));
         Assert.DoesNotContain(Password, json.GetRawText());
     }
-
 }

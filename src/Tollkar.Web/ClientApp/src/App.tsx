@@ -1,8 +1,12 @@
 import { useState } from 'react'
-import { Navigate, NavLink, Outlet, Route, Routes, useNavigate, useOutletContext } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { AdminPage } from './admin/AdminPage'
 import { LoginPage } from './auth/LoginPage'
+import { RequireAdmin } from './auth/RequireAdmin'
 import { RequireUser } from './auth/RequireUser'
-import { submitAuth, type User } from './auth/api'
+import { submitAuth } from './auth/api'
+import { canAccessAdmin } from './auth/authorization'
+import { useCurrentUser } from './auth/currentUser'
 import './App.css'
 import { useQueue } from './queue/useQueue'
 import { PlayerPage } from './player/PlayerPage'
@@ -16,6 +20,9 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/queue" element={<QueuePage />} />
           <Route path="/player" element={<PlayerPage />} />
+          <Route element={<RequireAdmin />}>
+            <Route path="/admin" element={<AdminPage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
@@ -24,7 +31,7 @@ function App() {
 }
 
 function AppLayout() {
-  const user = useOutletContext<User>()
+  const user = useCurrentUser()
   const queue = useQueue(user.id)
   const navigate = useNavigate()
   const [pending, setPending] = useState(false)
@@ -53,6 +60,7 @@ function AppLayout() {
         <nav className="primary-navigation" aria-label="Основная навигация">
           <NavLink to="/queue">Очередь</NavLink>
           <NavLink to="/player">Плеер</NavLink>
+          {canAccessAdmin(user) && <NavLink to="/admin">Администрирование</NavLink>}
         </nav>
         <div className="user-menu"><span>{user.login}</span><button className="secondary-button" disabled={pending} onClick={logout}>{pending ? 'Выходим…' : 'Выйти'}</button></div>
       </header>

@@ -9,16 +9,21 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/auth").AllowAnonymous();
+        var group = app.MapGroup("/api/auth");
         group.MapGet("/csrf", (HttpContext context, IAntiforgery antiforgery) =>
-            Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
+            Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }))
+            .AllowAnonymous();
         group.MapGet("/me", async (HttpContext context, UserManager<TollkarUser> users) =>
         {
             var user = await users.GetUserAsync(context.User);
             return user is null ? Results.Unauthorized() : Results.Ok(ToResponse(user));
-        });
-        group.MapPost("/register", RegisterAsync).AddEndpointFilter<ValidateAuthRequest>();
-        group.MapPost("/login", LoginAsync).AddEndpointFilter<ValidateAuthRequest>();
+        }).AllowAnonymous();
+        group.MapPost("/register", RegisterAsync)
+            .AddEndpointFilter<ValidateAuthRequest>()
+            .RequireAuthorization(AdministratorAccount.PolicyName);
+        group.MapPost("/login", LoginAsync)
+            .AddEndpointFilter<ValidateAuthRequest>()
+            .AllowAnonymous();
         group.MapPost("/logout", async (SignInManager<TollkarUser> signIn) =>
         {
             await signIn.SignOutAsync();
@@ -26,8 +31,7 @@ public static class AuthEndpoints
         }).AddEndpointFilter<ValidateAuthRequest>();
     }
 
-    private static async Task<IResult> RegisterAsync(Credentials credentials,
-        UserManager<TollkarUser> users, SignInManager<TollkarUser> signIn)
+    private static async Task<IResult> RegisterAsync(Credentials credentials, UserManager<TollkarUser> users)
     {
         var user = new TollkarUser { UserName = credentials.Login };
         IdentityResult result;
@@ -46,7 +50,6 @@ public static class AuthEndpoints
             return Results.ValidationProblem(result.Errors.GroupBy(error => error.Code)
                 .ToDictionary(group => group.Key, group => group.Select(error => error.Description).ToArray()));
 
-        await signIn.SignInAsync(user, isPersistent: false);
         return Results.Ok(ToResponse(user));
     }
 
@@ -66,5 +69,10 @@ public static class AuthEndpoints
         new Dictionary<string, string[]> { ["InvalidCredentials"] = ["Неверный логин или пароль."] },
         statusCode: StatusCodes.Status401Unauthorized);
 
-    private static object ToResponse(TollkarUser user) => new { user.Id, login = user.UserName };
+    private static object ToResponse(TollkarUser user) => new
+    {
+        user.Id,
+        login = user.UserName,
+        isAdmin = AdministratorAccount.IsAdministrator(user)
+    };
 }

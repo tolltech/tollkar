@@ -40,10 +40,14 @@ Apply migrations explicitly during deployment; the server does not migrate an ex
 Use HTTPS in production: authentication and antiforgery cookies are Secure outside Development.
 Persist ASP.NET Core Data Protection keys securely alongside the deployment so sessions survive restarts.
 
-`POST /api/auth/register` and `/api/auth/login` accept `{ "login": "...", "password": "..." }`.
-Both create a non-persistent session and return only `{ "id": "...", "login": "..." }`.
+`POST /api/auth/login` accepts `{ "login": "...", "password": "..." }`, creates a non-persistent
+session and returns `{ "id": "...", "login": "...", "isAdmin": true|false }`.
+Public registration is disabled. An existing user whose normalized login is `admin` can create users
+from `/admin`; the protected `POST /api/auth/register` endpoint accepts the same credentials and does
+not replace the administrator's current session. The initial `admin` account must be provisioned separately
+before registration is locked down.
 Identity normalizes login names and enforces its default password policy and login lockout.
-`GET /api/auth/me` returns that same user contract or 401; `POST /api/auth/logout` clears the cookie.
+`GET /api/auth/me` returns the same user contract or 401; `POST /api/auth/logout` clears the cookie.
 Before each POST, fetch `GET /api/auth/csrf` and send its `token` in `X-CSRF-TOKEN`, retaining cookies.
 Refresh this token after login/logout because it is bound to the current identity.
 Validation failures use Problem Details with a stable `errors` dictionary of code-to-message arrays;
@@ -54,7 +58,7 @@ Only auth, health, the API 404 handler and the SPA fallback are explicitly anony
 Do not apply `AllowAnonymous` to future data endpoints; derive ownership from the authenticated user ID,
 not a client-supplied ID. The queue page provides search and queue controls; both pages display the synchronized current song.
 The player streams HTML5 video with synchronized playback controls.
-The frontend verifies `/api/auth/me` before rendering `/queue` or `/player`.
+The frontend verifies `/api/auth/me` before rendering `/queue`, `/player` or the admin-only `/admin` page.
 
 ## Library and personal queues
 

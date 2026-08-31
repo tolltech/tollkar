@@ -35,8 +35,8 @@ public sealed class CatalogTests : IAsyncLifetime
     [Fact]
     public async Task UsersCannotReadOrMutateEachOthersQueues()
     {
-        using var alice = await RegisterAsync("Alice");
-        using var bob = await RegisterAsync("Bob");
+        using var alice = await LoginAsync("Alice");
+        using var bob = await LoginAsync("Bob");
         foreach (var song in songs)
         {
             (await MutateAsync(alice, HttpMethod.Post, "/api/queue", new { songId = song.Id })).EnsureSuccessStatusCode();
@@ -66,7 +66,7 @@ public sealed class CatalogTests : IAsyncLifetime
     [Fact]
     public async Task SearchReturnsMetadataWithoutLocalPaths()
     {
-        using var client = await RegisterAsync("Alice");
+        using var client = await LoginAsync("Alice");
         var result = await client.GetFromJsonAsync<LibrarySong[]>("/api/library/search?text=Fir&limit=1");
         Assert.Equal(songs[0], Assert.Single(result!));
         var json = await client.GetStringAsync("/api/library/search?text=Artist");
@@ -79,7 +79,7 @@ public sealed class CatalogTests : IAsyncLifetime
     [Fact]
     public async Task MutationsValidateSongsAndRequireCsrf()
     {
-        using var client = await RegisterAsync("Alice");
+        using var client = await LoginAsync("Alice");
         Assert.Equal(HttpStatusCode.NotFound,
             (await MutateAsync(client, HttpMethod.Post, "/api/queue", new { songId = Guid.NewGuid() })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest,
@@ -111,8 +111,8 @@ public sealed class CatalogTests : IAsyncLifetime
     [Fact]
     public async Task ConcurrentAppendsKeepIndependentContiguousPositions()
     {
-        using var alice = await RegisterAsync("Alice");
-        using var bob = await RegisterAsync("Bob");
+        using var alice = await LoginAsync("Alice");
+        using var bob = await LoginAsync("Bob");
         var responses = await Task.WhenAll(Enumerable.Range(0, 12).Select(index =>
             MutateAsync(index % 2 == 0 ? alice : bob, HttpMethod.Post,
                 "/api/queue", new { songId = songs[0].Id })));
@@ -128,10 +128,11 @@ public sealed class CatalogTests : IAsyncLifetime
         }
     }
 
-    private async Task<HttpClient> RegisterAsync(string login)
+    private async Task<HttpClient> LoginAsync(string login)
     {
+        await application.CreateUserAsync(login);
         var client = application.CreateSession();
-        (await MutateAsync(client, HttpMethod.Post, "/api/auth/register", new { login, password = "Valid-password-42!" }))
+        (await MutateAsync(client, HttpMethod.Post, "/api/auth/login", new { login, password = AuthApplication.Password }))
             .EnsureSuccessStatusCode();
         return client;
     }
