@@ -11,6 +11,7 @@ _tmp/
 src/Tollkar.Web/wwwroot/
 src/Tollkar.Web/songs/*
 !src/Tollkar.Web/songs/.gitkeep
+src/Tollkar.Web/logs/
 .idea/
 .vscode/
 *.DotSettings.user

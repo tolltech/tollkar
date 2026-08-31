@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging.Abstractions;
 using Tollkar.Application.Queue;
 using Tollkar.Application.Queue.Models;
 using Tollkar.Web.Realtime;
+using Vostok.Logging.Abstractions;
 
 namespace Tollkar.Web.Tests;
 
@@ -12,7 +12,7 @@ public sealed class QueuePublicationTests
     public async Task SnapshotFailureDoesNotReportCommittedMutationAsFailed()
     {
         using var coordinator = new QueueStateCoordinator(new TestHubContext(new TestClient()),
-            NullLogger<QueueStateCoordinator>.Instance);
+            new SilentLog());
         var queue = new TestQueue { ReadError = new IOException("Snapshot unavailable") };
         var service = new SynchronizedPlaybackQueue("alice", queue, coordinator);
         await service.AddAsync(Guid.NewGuid());
@@ -37,7 +37,7 @@ public sealed class QueuePublicationTests
             }
         };
         using var coordinator = new QueueStateCoordinator(new TestHubContext(client),
-            NullLogger<QueueStateCoordinator>.Instance);
+            new SilentLog());
         var service = new SynchronizedPlaybackQueue("alice", new TestQueue(), coordinator);
         var mutation = service.AddAsync(Guid.NewGuid()).AsTask();
         try
@@ -56,7 +56,7 @@ public sealed class QueuePublicationTests
     {
         var clock = new PlaybackClock();
         using var coordinator = new QueueStateCoordinator(new TestHubContext(new TestClient()),
-            NullLogger<QueueStateCoordinator>.Instance, clock);
+            new SilentLog(), clock);
         var queue = new TestQueue();
         var service = new SynchronizedPlaybackQueue("alice", queue, coordinator);
         for (var i = 0; i < 3; i++) await service.AddAsync(Guid.NewGuid());

@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.SignalR;
 using Tollkar.Application.Queue;
+using Vostok.Logging.Abstractions;
 
 namespace Tollkar.Web.Realtime;
 
-public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<QueueStateCoordinator> logger,
+public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILog log,
     TimeProvider? timeProvider = null)
     : IDisposable
 {
@@ -12,6 +13,7 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<Q
     private readonly Dictionary<string, Guid> currentItems = new();
     private readonly Dictionary<string, PlaybackTimeline> playback = new();
     private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
+    private readonly ILog logger = log.ForContext<QueueStateCoordinator>();
 
     private sealed record PlaybackTimeline(long Revision, bool IsPlaying, double PositionSeconds, long Timestamp);
 
@@ -111,7 +113,7 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<Q
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Unable to read committed queue state; clients recover on their next snapshot refresh.");
+                logger.Error(exception, "Unable to read committed queue state; clients recover on their next snapshot refresh.");
             }
         }
         finally { gate.Release(); }
@@ -135,7 +137,7 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILogger<Q
         try { await publish(timeout.Token); }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Unable to publish queue state; clients recover on their next snapshot refresh.");
+            logger.Error(exception, "Unable to publish queue state; clients recover on their next snapshot refresh.");
         }
     }
 

@@ -2,11 +2,11 @@ using System.Threading.Channels;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Tollkar.Application.Library;
 using Tollkar.Infrastructure;
 using Tollkar.Web.Catalog;
+using Vostok.Logging.Abstractions;
 
 namespace Tollkar.Web.Tests;
 
@@ -25,7 +25,7 @@ public sealed class LibrarySyncTests : IAsyncLifetime
         library = TollkarInfrastructure.CreateLibraryService(Path.Combine(directory, "library.db"));
         await library.InitializeAsync();
         worker = new LibrarySyncService(library, new TestEnvironment { ContentRootPath = directory },
-            Options.Create(new LibrarySyncOptions()), clock, NullLogger<LibrarySyncService>.Instance);
+            Options.Create(new LibrarySyncOptions()), clock, new SilentLog());
     }
 
     public async Task DisposeAsync()

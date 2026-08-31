@@ -27,6 +27,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.0" />
+    <PackageReference Include="Vostok.Logging.Abstractions" Version="1.0.33" />
+    <PackageReference Include="Vostok.Logging.File" Version="1.0.24" />
+    <PackageReference Include="Vostok.Logging.Microsoft" Version="2.0.19" />
   </ItemGroup>
 
   <Target Name="EnsureFrontendDependencies"

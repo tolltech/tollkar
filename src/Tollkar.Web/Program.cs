@@ -3,16 +3,35 @@ using Tollkar.Web.Catalog;
 using Tollkar.Application.Library;
 using Tollkar.Web.Realtime;
 using Tollkar.Web.Media;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
+using Tollkar.Web.Persistence;
+using Tollkar.Web.Logging;
 
-var builder = WebApplication.CreateBuilder(args);
+var migrateDatabases = args.Length == 1 && args[0] == "--migrate-databases";
+var builder = WebApplication.CreateBuilder(migrateDatabases ? [] : args);
+builder.AddWebLogging();
 builder.AddWebAuthentication();
 builder.AddCatalog();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<QueueStateCoordinator>();
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
-var app = builder.Build();
+await using var app = builder.Build();
+if (migrateDatabases)
+{
+    // Deployment updates both schemas without starting HTTP or the song scanner.
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<WebDbContext>().Database.MigrateAsync();
+    await app.Services.GetRequiredService<ILibraryService>().InitializeAsync();
+    return;
+}
 await app.Services.GetRequiredService<ILibraryService>().InitializeAsync();
 
+// The default trusted proxies are loopback addresses, where local Caddy runs.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();

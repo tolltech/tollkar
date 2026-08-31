@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Tollkar.Application.Library;
+using Vostok.Logging.Abstractions;
 
 namespace Tollkar.Web.Catalog;
 
@@ -8,8 +9,10 @@ public sealed class LibrarySyncService(
     IHostEnvironment environment,
     IOptions<LibrarySyncOptions> options,
     TimeProvider timeProvider,
-    ILogger<LibrarySyncService> logger) : BackgroundService
+    ILog log) : BackgroundService
 {
+    private readonly ILog logger = log.ForContext<LibrarySyncService>();
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var settings = options.Value;
@@ -25,7 +28,7 @@ public sealed class LibrarySyncService(
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
-                    logger.LogError(exception, "Song synchronization failed; retrying after {Interval}.",
+                    logger.Error(exception, "Song synchronization failed; retrying after {Interval}.",
                         settings.SyncInterval);
                 }
 
@@ -45,10 +48,10 @@ public sealed class LibrarySyncService(
         await foreach (var progress in library.RefreshRootAsync(root.Id, cancellationToken))
         {
             if (!progress.IsCompleted) continue;
-            logger.LogDebug("Song synchronization completed: {Indexed} indexed, {Unchanged} unchanged, {Failed} failed.",
+            logger.Debug("Song synchronization completed: {Indexed} indexed, {Unchanged} unchanged, {Failed} failed.",
                 progress.IndexedSongs, progress.UnchangedFiles, progress.FailedFiles);
             if (progress.FailedFiles > 0)
-                logger.LogWarning("Song synchronization encountered {Failed} file errors.", progress.FailedFiles);
+                logger.Warn("Song synchronization encountered {Failed} file errors.", progress.FailedFiles);
         }
     }
 }

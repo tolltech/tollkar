@@ -29,7 +29,8 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
             {
                 ["ConnectionStrings:WebDatabase"] = $"Data Source={Path.Combine(directory, "web.db")};Pooling=False",
                 ["Library:DatabasePath"] = Path.Combine(directory, "library.db"),
-                ["Library:SongsPath"] = Path.Combine(directory, "songs")
+                ["Library:SongsPath"] = Path.Combine(directory, "songs"),
+                ["VostokLogging:FilePath"] = Path.Combine(directory, "web.log")
             }));
         builder.ConfigureServices(services => services.AddSingleton<IStartupFilter, ProtectedTestEndpoints>());
         if (interceptor is not null)
