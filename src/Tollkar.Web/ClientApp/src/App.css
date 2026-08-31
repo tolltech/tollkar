@@ -25,13 +25,11 @@
 }
 
 .brand-mark {
-  align-items: center;
-  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
   border-radius: 11px;
   box-shadow: 0 8px 32px rgba(239, 64, 106, 0.28);
-  display: inline-flex;
+  display: block;
+  flex-shrink: 0;
   height: 36px;
-  justify-content: center;
   width: 36px;
 }
 

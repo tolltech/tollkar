@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Brand } from '../Brand'
 import { submitAuth } from './api'
 
 export function LoginPage() {
@@ -28,7 +29,7 @@ export function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-card" aria-labelledby="login-title">
-        <div className="brand login-brand"><span className="brand-mark" aria-hidden="true">T</span><span>Tollkar</span></div>
+        <div className="brand login-brand"><Brand /></div>
         <p className="eyebrow">Веб-караоке</p>
         <h1 id="login-title">Вход</h1>
         <form className="auth-form" onSubmit={submit} aria-busy={pending}>

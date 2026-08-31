@@ -25,8 +25,9 @@ Open `http://localhost:5074`. During development the application redirects front
 `http://localhost:5173`; Vite proxies `/api` requests back to ASP.NET Core.
 
 Use `./publish.sh /path/to/deployment` on macOS to publish the web application and create or migrate
-both databases without overwriting songs, logs or existing server configuration. Stop the server and
-back up persistent data first. See the deployment guide above for Caddy and runtime configuration.
+both databases without overwriting songs, logs or existing server configuration. Back up persistent
+data first; the script stops and restarts the required `local.tollkar.web` LaunchAgent automatically.
+See the deployment guide above for Caddy and runtime configuration.
 `dotnet publish` runs `npm ci` and the frontend production build, then includes the resulting SPA in the publish output.
 The web server writes application and ASP.NET Core events through Vostok.Logging with the base path
 `logs/web.log`, rotating at 100 MB and retaining five numerically suffixed log parts.

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import { AdminPage } from './admin/AdminPage'
+import { Brand } from './Brand'
 import { LoginPage } from './auth/LoginPage'
 import { RequireAdmin } from './auth/RequireAdmin'
 import { RequireUser } from './auth/RequireUser'
@@ -54,8 +55,7 @@ function AppLayout() {
     <div className="app-shell">
       <header className="app-header">
         <NavLink className="brand" to="/queue" aria-label="Tollkar — к очереди">
-          <span className="brand-mark" aria-hidden="true">T</span>
-          <span>Tollkar</span>
+          <Brand />
         </NavLink>
         <nav className="primary-navigation" aria-label="Основная навигация">
           <NavLink to="/queue">Очередь</NavLink>
