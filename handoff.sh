@@ -8,6 +8,7 @@ dotnet_quiet="$repo_dir/.codex/skills/dotnet-minimal-output/scripts/dotnet-quiet
 client_dir="$repo_dir/src/Tollkar.Web/ClientApp"
 
 sh -n "$repo_dir/publish.sh"
+sh -n "$repo_dir/publish-server.sh"
 
 if [ ! -d "$client_dir/node_modules" ]; then
     (cd "$client_dir" && npm ci)
