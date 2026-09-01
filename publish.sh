@@ -89,9 +89,11 @@ while [ -n "$service_pid" ] && kill -0 "$service_pid" 2>/dev/null; do
 done
 launchctl print "$agent_target" >/dev/null 2>&1 &&
     fail "LaunchAgent is still loaded after bootout: $agent_target"
+printf '%s\n' "LaunchAgent stopped: $agent_target"
 
 # Never delete destination files or copy development databases, media or logs.
 # Existing server configuration wins; new configuration files are seeded once.
+printf '%s\n' "Copying published files to: $destination"
 rsync -a --ignore-existing --include='/appsettings*.json' --exclude='*' "$stage_dir/" "$destination/"
 rsync -a \
     --exclude='appsettings*.json' --exclude='*.db*' --exclude='*.sqlite*' \
@@ -103,6 +105,7 @@ mkdir -p "$destination/songs" "$destination/logs"
 # Relative SQLite paths must resolve exactly as they do for the deployed server.
 # Explicit migration mode never starts hosted services or scans the song directory.
 cd "$destination"
+printf '%s\n' "Migrating databases in: $destination"
 ASPNETCORE_ENVIRONMENT=Production DOTNET_ENVIRONMENT=Production \
     ASPNETCORE_CONTENTROOT="$destination" DOTNET_CONTENTROOT="$destination" \
     dotnet ./Tollkar.Web.dll --migrate-databases
