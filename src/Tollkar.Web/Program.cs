@@ -51,6 +51,7 @@ app.UseStatusCodePages(async context =>
         }, statusCode: context.HttpContext.Response.StatusCode).ExecuteAsync(context.HttpContext);
 });
 app.UseAuthentication();
+app.UseUserActionLogging();
 app.UseAuthorization();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();

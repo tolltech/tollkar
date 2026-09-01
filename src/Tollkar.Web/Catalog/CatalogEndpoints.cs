@@ -3,6 +3,7 @@ using Tollkar.Application.Library;
 using Tollkar.Application.Library.Models;
 using Tollkar.Application.Queue;
 using Tollkar.Web.Authentication;
+using Tollkar.Web.Logging;
 using Tollkar.Web.Realtime;
 
 namespace Tollkar.Web.Catalog;
@@ -31,29 +32,29 @@ public static class CatalogEndpoints
                 return Invalid("Playback", "Некорректная команда воспроизведения.");
             await service.ControlAsync(request, cancellationToken);
             return Results.NoContent();
-        }).AddEndpointFilter<ValidateAuthRequest>();
-        queue.MapPost("/", AddAsync).AddEndpointFilter<ValidateAuthRequest>();
+        }).LogUserAction().SuppressAutomaticPlaybackLogging().AddEndpointFilter<ValidateAuthRequest>();
+        queue.MapPost("/", AddAsync).LogUserAction().AddEndpointFilter<ValidateAuthRequest>();
         queue.MapPost("/{id:guid}/play", async (Guid id, SynchronizedPlaybackQueue service,
             CancellationToken cancellationToken) =>
         {
             if (id == Guid.Empty) return Invalid("Id", "Укажите элемент очереди.");
             await service.PlayNowAsync(id, cancellationToken);
             return Results.NoContent();
-        }).AddEndpointFilter<ValidateAuthRequest>();
+        }).LogUserAction().AddEndpointFilter<ValidateAuthRequest>();
         queue.MapDelete("/{id:guid}", async (Guid id, IPlaybackQueueService service,
             CancellationToken cancellationToken) =>
         {
             if (id == Guid.Empty) return Invalid("Id", "Укажите элемент очереди.");
             await service.RemoveAsync(id, cancellationToken);
             return Results.NoContent();
-        }).AddEndpointFilter<ValidateAuthRequest>();
+        }).LogUserAction().AddEndpointFilter<ValidateAuthRequest>();
         queue.MapPost("/{id:guid}/move", async (Guid id, MoveSong request,
             IPlaybackQueueService service, CancellationToken cancellationToken) =>
         {
             if (id == Guid.Empty) return Invalid("Id", "Укажите элемент очереди.");
             await service.MoveByAsync(id, request.Offset, cancellationToken);
             return Results.NoContent();
-        }).AddEndpointFilter<ValidateAuthRequest>();
+        }).LogUserAction().AddEndpointFilter<ValidateAuthRequest>();
     }
 
     private static async Task<IResult> AddAsync(AddSong request, ILibraryService library,

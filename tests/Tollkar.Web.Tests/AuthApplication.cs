@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Tollkar.Web.Authentication;
 using Tollkar.Web.Persistence;
+using Vostok.Logging.Abstractions;
 
 namespace Tollkar.Web.Tests;
 
@@ -16,11 +17,13 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
 {
     public const string Password = "Valid-password-42!";
     private readonly SaveChangesInterceptor? interceptor;
+    private readonly ILog? log;
     private readonly string directory = Path.Combine(Path.GetTempPath(), "tollkar-auth-" + Guid.NewGuid().ToString("N"));
 
-    public AuthApplication(SaveChangesInterceptor? interceptor = null)
+    public AuthApplication(SaveChangesInterceptor? interceptor = null, ILog? log = null)
     {
         this.interceptor = interceptor;
+        this.log = log;
         Directory.CreateDirectory(directory);
     }
 
@@ -36,6 +39,8 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
                 ["VostokLogging:FilePath"] = Path.Combine(directory, "web.log")
             }));
         builder.ConfigureServices(services => services.AddSingleton<IStartupFilter, ProtectedTestEndpoints>());
+        if (log is not null)
+            builder.ConfigureServices(services => services.AddSingleton<ILog>(log));
         if (interceptor is not null)
             builder.ConfigureServices(services => services.ConfigureDbContext<WebDbContext>(
                 options => options.AddInterceptors(interceptor)));

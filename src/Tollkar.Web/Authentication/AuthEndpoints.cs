@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Tollkar.Web.Logging;
 
 namespace Tollkar.Web.Authentication;
 
@@ -19,16 +20,18 @@ public static class AuthEndpoints
             return user is null ? Results.Unauthorized() : Results.Ok(ToResponse(user));
         }).AllowAnonymous();
         group.MapPost("/register", RegisterAsync)
+            .LogUserAction()
             .AddEndpointFilter<ValidateAuthRequest>()
             .RequireAuthorization(AdministratorAccount.PolicyName);
         group.MapPost("/login", LoginAsync)
+            .LogUserAction(UserActionIdentitySource.SuccessfulLogin)
             .AddEndpointFilter<ValidateAuthRequest>()
             .AllowAnonymous();
         group.MapPost("/logout", async (SignInManager<TollkarUser> signIn) =>
         {
             await signIn.SignOutAsync();
             return Results.NoContent();
-        }).AddEndpointFilter<ValidateAuthRequest>();
+        }).LogUserAction().AddEndpointFilter<ValidateAuthRequest>();
     }
 
     private static async Task<IResult> RegisterAsync(Credentials credentials, UserManager<TollkarUser> users)
@@ -54,7 +57,7 @@ public static class AuthEndpoints
     }
 
     private static async Task<IResult> LoginAsync(Credentials credentials,
-        UserManager<TollkarUser> users, SignInManager<TollkarUser> signIn)
+        UserManager<TollkarUser> users, SignInManager<TollkarUser> signIn, HttpContext context)
     {
         var user = await users.FindByNameAsync(credentials.Login!);
         if (user is null)
@@ -62,7 +65,11 @@ public static class AuthEndpoints
 
         var result = await signIn.PasswordSignInAsync(user, credentials.Password!,
             isPersistent: false, lockoutOnFailure: true);
-        return result.Succeeded ? Results.Ok(ToResponse(user)) : InvalidLogin();
+        if (!result.Succeeded)
+            return InvalidLogin();
+
+        context.Items[UserActionLogging.SuccessfulLoginKey] = user.UserName;
+        return Results.Ok(ToResponse(user));
     }
 
     private static IResult InvalidLogin() => Results.ValidationProblem(
