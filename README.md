@@ -26,7 +26,11 @@ Open `http://localhost:5074`. During development the application redirects front
 
 Use `./publish.sh /path/to/deployment` on macOS to publish the web application and create or migrate
 both databases without overwriting songs, logs or existing server configuration. Back up persistent
-data first; the script stops and restarts the required `local.tollkar.web` LaunchAgent automatically.
+data first; the script starts or restarts the required `local.tollkar.web` LaunchAgent automatically.
+Use `./publish-files.sh /path/to/deployment` to build and copy the same application files without
+touching LaunchAgent state, running database migrations or checking server health. A running process
+continues to use its loaded binaries until it is restarted manually. The local target wrappers are
+`./publish-server.sh` and `./publish-files-server.sh` respectively.
 See the deployment guide above for Caddy and runtime configuration.
 `dotnet publish` runs `npm ci` and the frontend production build, then includes the resulting SPA in the publish output.
 The web server writes application and ASP.NET Core events through Vostok.Logging with the base path

@@ -9,6 +9,11 @@ client_dir="$repo_dir/src/Tollkar.Web/ClientApp"
 
 sh -n "$repo_dir/publish.sh"
 sh -n "$repo_dir/publish-server.sh"
+sh -n "$repo_dir/publish-common.sh"
+sh -n "$repo_dir/publish-files.sh"
+sh -n "$repo_dir/publish-files-server.sh"
+sh -n "$repo_dir/tests/publish-scripts.sh"
+sh "$repo_dir/tests/publish-scripts.sh"
 
 if [ ! -d "$client_dir/node_modules" ]; then
     (cd "$client_dir" && npm ci)
