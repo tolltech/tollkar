@@ -20,19 +20,29 @@
 .web-player-karaoke > .player-controls,
 .web-player-karaoke > .player-activation,
 .web-player-karaoke > .player-error { position: relative; }
-.player-lyrics { display: flex; flex-direction: column; gap: 16px; justify-content: center;
+.player-lyrics { --lyric-current-size: clamp(24px, 5vw, 44px); --lyric-next-size: clamp(16px, 3vw, 26px);
+  display: flex; flex-direction: column; gap: 16px; justify-content: center;
   min-height: min(52vh, 360px); padding: 24px; position: relative; text-align: center; }
 .player-lyric { margin: 0; }
 /* The sung part is clipped out of the glyphs themselves, so the shadow has to come from a
    filter: text-shadow would show straight through the transparent fill. */
 .player-lyric-current { filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.9));
-  font-size: clamp(24px, 5vw, 44px); font-weight: 700; line-height: 1.25; }
+  font-size: var(--lyric-current-size); font-weight: 700; line-height: 1.25; }
+/* Spaces have to survive inside a syllable to keep the glyph widths the fill is measured against,
+   but plain `pre` would also remove the only break opportunities a line has: with the stage cropped
+   by overflow: hidden a long line would be cut off at the edges instead of wrapping. */
 .player-syllable { -webkit-background-clip: text; background-clip: text; color: transparent;
   background-image: linear-gradient(to right,
     var(--accent-light) var(--sung, 0%), var(--text-primary) var(--sung, 0%));
-  white-space: pre; }
-.player-lyric-next { color: var(--text-secondary); font-size: clamp(16px, 3vw, 26px);
+  white-space: pre-wrap; }
+.player-lyric-next { color: var(--text-secondary); font-size: var(--lyric-next-size);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9); }
-.web-player-karaoke:fullscreen .player-lyrics { flex: 1; }
+/* The windowed clamps above hit their ceiling at ~880px wide, so a fullscreen monitor or TV would
+   otherwise show the same small text as the window. The height term keeps both lines in frame when
+   the screen is short. */
+.web-player-karaoke:fullscreen .player-lyrics { flex: 1; gap: clamp(16px, 3vh, 40px);
+  padding: clamp(24px, 4vh, 64px);
+  --lyric-current-size: clamp(32px, min(6vw, 10vh), 96px);
+  --lyric-next-size: clamp(20px, min(3.6vw, 6vh), 56px); }
 
 @media (max-width: 640px) { .player-controls button { flex: 1; } .player-seek { flex-basis: 100%; } }
