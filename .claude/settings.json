@@ -1,14 +1,4 @@
 {
-  "permissions": {
-    "deny": [
-      "Read(**/*.txt)",
-	  "Read(**/*.md)",
-	  "Read(**/*.json)",
-	  "Read(**/*.yml)",
-	  "Read(**/*.xml)",
-	  "Read(/Tools/**/*)"
-    ]
-  },
   "model": "opusplan",
   "env": {
     "MAX_THINKING_TOKENS": "10000",
