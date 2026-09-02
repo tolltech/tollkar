@@ -28,6 +28,7 @@
 .icon-button { font-size: 20px; min-width: 44px; padding: 8px; }
 .remove-button { padding: 12px; }
 .current-badge { background: rgba(137, 88, 255, 0.2); border-radius: 6px; color: #d8caff; font-size: 12px; padding: 6px 8px; }
+.song-details .song-folder { background: rgba(137, 88, 255, 0.16); border-radius: 6px; color: #d8caff; display: inline-block; font-size: 12px; margin-left: 8px; padding: 2px 6px; }
 .is-current { border-top-color: var(--accent-secondary); }
 .queue-empty { color: var(--text-secondary); padding: 40px 0; text-align: center; }
 .queue-empty > span { color: var(--accent-light); font-size: 40px; }

@@ -8,6 +8,9 @@ namespace Tollkar.Infrastructure.Library;
 internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRepository
 {
     private const int SchemaVersion = 4;
+    private const string SongColumns = "s.Id,s.Title,s.Artist,s.DurationTicks,s.Capabilities,r.Path,f.Path";
+    private const string SongJoins = "JOIN Files f ON f.SongId=s.Id JOIN LibraryRoots r ON r.Id=s.RootId";
+    private const string SongOrderAndLimit = "ORDER BY s.Artist,s.Title LIMIT $limit;";
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     private readonly string _connectionString = new SqliteConnectionStringBuilder
@@ -160,15 +163,16 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
         await using var command = connection.CreateCommand();
         var text = query.Text?.Trim() ?? "";
         command.CommandText = text.Length == 0
-            ? "SELECT Id,Title,Artist,DurationTicks,Capabilities FROM Songs ORDER BY Artist,Title LIMIT $limit;"
-            : "SELECT s.Id,s.Title,s.Artist,s.DurationTicks,s.Capabilities FROM SongSearch f JOIN Songs s ON s.Id=f.SongId WHERE SongSearch MATCH $match ORDER BY s.Artist,s.Title LIMIT $limit;";
+            ? $"SELECT {SongColumns} FROM Songs s {SongJoins} {SongOrderAndLimit}"
+            // FTS5 accepts MATCH only against the table name, so SongSearch stays unaliased.
+            : $"SELECT {SongColumns} FROM SongSearch JOIN Songs s ON s.Id=SongSearch.SongId {SongJoins} WHERE SongSearch MATCH $match {SongOrderAndLimit}";
         if (text.Length > 0)
         {
             command.Parameters.AddWithValue("$match", ToFtsQuery(text));
         }
         command.Parameters.AddWithValue("$limit", query.ValidatedLimit);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken)) songs.Add(new(Guid.Parse(reader.GetString(0)), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.IsDBNull(3) ? null : TimeSpan.FromTicks(reader.GetInt64(3)), (SongCapabilities)reader.GetInt32(4)));
+        while (await reader.ReadAsync(cancellationToken)) songs.Add(new(Guid.Parse(reader.GetString(0)), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.IsDBNull(3) ? null : TimeSpan.FromTicks(reader.GetInt64(3)), (SongCapabilities)reader.GetInt32(4), SongFolder.FromPath(reader.GetString(5), reader.GetString(6))));
         return songs;
     }
 

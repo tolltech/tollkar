@@ -79,6 +79,10 @@ files keep their IDs, and deleted files are removed from the catalog using the s
 Only this directory is refreshed automatically; any other catalog roots remain untouched.
 Scan failures are logged and retried on the next pass without stopping the web server.
 
+Songs found in a subdirectory are labelled in search results with the name of the first folder under
+the songs root, so the same title from different sources stays distinguishable; songs kept directly in
+the root get no label, and deeper nesting still shows only that first folder.
+
 Supported files are `.mp4` and `.kfn`. Use `Artist - Title.mp4` for video metadata. A KFN container
 carries its own title and artist, falling back to the file name and the containing folder, so filing
 them as `Artist/Title.kfn` is enough; see [the KFN notes](docs/kfn-format.md).
@@ -95,7 +99,8 @@ it must be positive and no greater than one day. Keep the songs directory outsid
 it is server-side storage and must not be publicly served as static files.
 Songs are ignored by Git and excluded from build/publish output; provision or persist the directory
 separately during deployment and grant the server read/write access to it and the catalog database.
-The Identity database remains separate; the web API does not expose filesystem paths or indexing operations.
+The Identity database remains separate; the web API does not expose filesystem paths or indexing
+operations — search results carry only the first folder name as a label, never a path.
 
 The library's existing versioned SQL initializer upgrades schema 3 to 4 transactionally at startup.
 Existing queue entries are preserved with owner `local-desktop`, inaccessible to web users.

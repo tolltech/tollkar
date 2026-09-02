@@ -7,4 +7,5 @@ public sealed record LibrarySong(
     string Title,
     string? Artist,
     TimeSpan? Duration,
-    SongCapabilities Capabilities);
+    SongCapabilities Capabilities,
+    string? Folder);

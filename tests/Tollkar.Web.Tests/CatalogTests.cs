@@ -10,6 +10,7 @@ namespace Tollkar.Web.Tests;
 
 public sealed class CatalogTests : IAsyncLifetime
 {
+    private const string Collection = "Сборник";
     private readonly AuthApplication application = new();
     private readonly string directory = Path.Combine(Path.GetTempPath(), "tollkar-catalog-" + Guid.NewGuid().ToString("N"));
     private LibrarySong[] songs = [];
@@ -17,9 +18,10 @@ public sealed class CatalogTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await application.InitializeDatabaseAsync();
-        Directory.CreateDirectory(directory);
-        foreach (var title in new[] { "First", "Second", "Third" })
+        Directory.CreateDirectory(Path.Combine(directory, Collection));
+        foreach (var title in new[] { "First", "Second" })
             await File.WriteAllBytesAsync(Path.Combine(directory, $"Artist - {title}.mp4"), [1]);
+        await File.WriteAllBytesAsync(Path.Combine(directory, Collection, "Artist - Third.mp4"), [1]);
         var library = application.Services.GetRequiredService<ILibraryService>();
         var root = await library.AddRootAsync(directory);
         await foreach (var _ in library.RefreshRootAsync(root.Id)) { }
@@ -74,8 +76,12 @@ public sealed class CatalogTests : IAsyncLifetime
         var result = await client.GetFromJsonAsync<LibrarySong[]>("/api/library/search?text=Fir&limit=1");
         Assert.Equal(songs[0], Assert.Single(result!));
         var json = await client.GetStringAsync("/api/library/search?text=Artist");
+        var payload = JsonDocument.Parse(json).RootElement;
         Assert.DoesNotContain(directory, json);
-        Assert.Equal(3, JsonDocument.Parse(json).RootElement.GetArrayLength());
+        Assert.Equal(3, payload.GetArrayLength());
+        Assert.Equal(
+            [null, null, Collection],
+            payload.EnumerateArray().Select(song => song.GetProperty("folder").GetString()));
         Assert.Empty((await client.GetFromJsonAsync<LibrarySong[]>("/api/library/search?text=Unknown"))!);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/library/search?limit=501")).StatusCode);
     }

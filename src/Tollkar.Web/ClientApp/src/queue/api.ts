@@ -1,6 +1,6 @@
 import { mutate } from '../api/request'
 
-export type Song = { id: string; title: string; artist: string | null }
+export type Song = { id: string; title: string; artist: string | null; folder: string | null }
 
 export async function searchSongs(text: string, signal: AbortSignal): Promise<Song[]> {
   const query = new URLSearchParams({ text: text.trim(), limit: '100' })

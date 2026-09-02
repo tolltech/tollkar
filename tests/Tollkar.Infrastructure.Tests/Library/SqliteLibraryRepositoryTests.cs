@@ -50,6 +50,30 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchLabelsSongsWithTheirFirstFolderUnderTheRoot()
+    {
+        var repository = new SqliteLibraryRepository(Path.Combine(_directory, "library.db"));
+        await repository.InitializeAsync();
+        var rootPath = Path.Combine(_directory, "songs");
+        var root = await repository.AddRootAsync(rootPath);
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Кино - Группа крови.mp4"), "Группа крови");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Сборник", "Кино - Звезда.mp4"), "Звезда");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Сборник", "Диск 2", "Кино - Кукушка.mp4"), "Кукушка");
+        var otherRoot = await repository.AddRootAsync(Path.Combine(_directory, "karaoke"));
+        await IndexSongAsync(repository, otherRoot.Id, Path.Combine(_directory, "karaoke", "Лучшее", "Кино - Легенда.mp4"), "Легенда");
+
+        var all = (await repository.SearchSongsAsync(new()))
+            .ToDictionary(song => song.Title, song => song.Folder);
+        var matched = await repository.SearchSongsAsync(new LibrarySearchQuery("Звезда"));
+
+        Assert.Null(all["Группа крови"]);
+        Assert.Equal("Сборник", all["Звезда"]);
+        Assert.Equal("Сборник", all["Кукушка"]);
+        Assert.Equal("Лучшее", all["Легенда"]);
+        Assert.Equal("Сборник", Assert.Single(matched).Folder);
+    }
+
+    [Fact]
     public async Task AddingSameRootTwiceReturnsExistingRoot()
     {
         var repository = new SqliteLibraryRepository(Path.Combine(_directory, "library.db"));
@@ -171,6 +195,18 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
         Assert.Empty(await TollkarInfrastructure.CreateServices(databasePath, "alice").PlaybackQueue.GetItemsAsync());
         Assert.Empty(await TollkarInfrastructure.CreateServices(databasePath, "bob").PlaybackQueue.GetItemsAsync());
     }
+
+    private static ValueTask<Guid> IndexSongAsync(
+        SqliteLibraryRepository repository,
+        Guid rootId,
+        string path,
+        string title) =>
+        repository.UpsertSongAsync(
+            rootId,
+            new FileCandidate(path, size: 1, lastWriteTime: DateTimeOffset.UnixEpoch),
+            "video",
+            1,
+            new SongMetadata(title, "Кино", null, SongCapabilities.Video));
 
     public void Dispose()
     {
