@@ -79,9 +79,12 @@ files keep their IDs, and deleted files are removed from the catalog using the s
 Only this directory is refreshed automatically; any other catalog roots remain untouched.
 Scan failures are logged and retried on the next pass without stopping the web server.
 
-Currently supported files are `.mp4`; use `Artist - Title.mp4` for artist/title metadata.
-To avoid indexing a partially copied file, copy it with a temporary extension and rename it to `.mp4`
-when the transfer completes. No desktop application or server restart is needed for new songs.
+Supported files are `.mp4` and `.kfn`. Use `Artist - Title.mp4` for video metadata. A KFN container
+carries its own title and artist, falling back to the file name and the containing folder, so filing
+them as `Artist/Title.kfn` is enough; see [the KFN notes](docs/kfn-format.md).
+To avoid indexing a partially copied file, copy it with a temporary extension and rename it to the
+final one when the transfer completes. No desktop application or server restart is needed for new
+songs. The desktop application indexes KFN containers but cannot play them; only the web player can.
 The queue page supports song search, adding, removing, moving up/down and selecting a current song.
 Selection and playback are synchronized across devices.
 
@@ -105,7 +108,8 @@ All catalog endpoints require authentication:
 - `GET /api/library/search?text=Artist&limit=100`: title/artist prefix search, or browse without text;
   limit is 1–500. Returns metadata only, never local file paths.
 - `GET /api/queue`: current user's ordered queue, including `id`, `songId`, `title`, `artist`,
-  zero-based `position` and `userId`.
+  `capabilities`, zero-based `position` and `userId`. `capabilities` is a flags value describing what
+  the song offers (audio, video, synchronized lyrics); the player picks its mode from it.
 - `POST /api/queue` with `{ "songId": "..." }`: append a library song (duplicates allowed).
 - `DELETE /api/queue`: clear the queue. If a song is currently playing, it remains until playback
   advances or another song is selected, then it is removed.
@@ -125,23 +129,32 @@ verify read/write isolation, ordering, CSRF protection, and preservation of lega
 
 Run the repository handoff gate with `./handoff.sh`.
 
-## Streaming video
+## Streaming songs
 
-`GET /api/songs/{songId}/media` streams an indexed MP4 to an authenticated browser using its
+`GET /api/songs/{songId}/media` streams an indexed song to an authenticated browser using its
 session cookie. `HEAD` returns the same media headers without a body. Use the song ID from library
 search or a queue item; the API accepts no filesystem path. All signed-in users can stream catalog
-songs; a song does not need to belong to their queue.
+songs; a song does not need to belong to their queue. A video song is served as `video/mp4`; a
+karaoke container is served as the `audio/mpeg` track it holds, read straight out of the container
+without extracting it to disk.
 
-Responses use `Content-Type: video/mp4`, `X-Content-Type-Options: nosniff` and `Cache-Control: no-store`.
+Responses use `X-Content-Type-Options: nosniff` and `Cache-Control: no-store`.
 ASP.NET Core processes byte ranges directly from a seekable file stream without buffering the whole
 video: full requests return 200, satisfiable single ranges (including suffix/open-ended ranges) return
 206 with `Content-Range`, and unsatisfiable ranges return 416 with the file length. Malformed and
 multiple ranges fall back to the full response. Unauthenticated requests return 401 without redirecting
 to login, including HEAD and Range requests.
 
+Two further endpoints serve karaoke songs and return 404 for anything else.
+`GET|HEAD /api/songs/{songId}/background` streams the backdrop clip as `video/mp4`, and only when the
+container really holds an MP4; clips a browser cannot play are reported as absent instead.
+`GET /api/songs/{songId}/karaoke` returns `{ background, lines }`, where `background` is `null` or
+`{ loop }` and each line carries its syllables with start and end times in milliseconds.
+
 Only files under the configured `Library:SongsPath` are served. Catalog entries from other roots,
-unknown IDs, missing/unreadable files, unsupported formats, and symbolic links in the songs directory
-return 404 without exposing local paths. The songs root itself must not be a symbolic link.
+unknown IDs, missing/unreadable files, unsupported formats, damaged containers, and symbolic links in
+the songs directory return 404 without exposing local paths.
+The songs root itself must not be a symbolic link.
 Keep this directory outside `wwwroot` and do not expose it through a reverse proxy's static-file route.
 The directory, its ancestors and catalog database must be writable only by trusted server operators:
 path checks are not a sandbox against a local process replacing filesystem entries concurrently.
@@ -154,9 +167,13 @@ state versions and single-process deployment limits.
 
 ## Web player
 
-Open `/player` after selecting a song in the queue. HTML5 video starts muted; the first pointer or
-keyboard action enables audio. If the browser requires an explicit playback gesture, use the displayed
-activation button. Audio permission is local to each page and must be enabled again after reload.
+Open `/player` after selecting a song in the queue. A video song fills the stage; a karaoke song
+plays its track over the backdrop clip, if it has one, with the lyrics drawn on top and highlighted
+syllable by syllable as they are sung. The backdrop is muted and follows the shared timeline,
+restarting or holding its last frame when it is shorter than the song.
+HTML5 media starts muted; the first pointer or keyboard action enables audio.
+If the browser requires an explicit playback gesture, use the displayed activation button.
+Audio permission is local to each page and must be enabled again after reload.
 Play/pause, next and seeking update all connected players for the same user. Fullscreen and sound
 activation are local controls; fullscreen requires browser support. MP4 codecs must be supported by
 the browser (a playable container alone does not guarantee codec support).

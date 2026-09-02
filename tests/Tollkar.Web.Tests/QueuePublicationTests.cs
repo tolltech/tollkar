@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Tollkar.Application.Queue;
 using Tollkar.Application.Queue.Models;
+using Tollkar.Core.Songs;
 using Tollkar.Web.Realtime;
 using Vostok.Logging.Abstractions;
 
@@ -150,7 +151,8 @@ public sealed class QueuePublicationTests
                 : ValueTask.FromException<IReadOnlyList<PlaybackQueueItem>>(ReadError);
         public ValueTask AddAsync(Guid songId, CancellationToken cancellationToken = default)
         {
-            Items.Add(new(Guid.NewGuid(), songId, "Song", null, Items.Count, "alice"));
+            Items.Add(new(Guid.NewGuid(), songId, "Song", null,
+                SongCapabilities.Audio | SongCapabilities.Video, Items.Count, "alice"));
             return ValueTask.CompletedTask;
         }
         public ValueTask RemoveAsync(Guid queueItemId, CancellationToken cancellationToken = default)

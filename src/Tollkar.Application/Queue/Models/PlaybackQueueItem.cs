@@ -1,3 +1,5 @@
+using Tollkar.Core.Songs;
+
 namespace Tollkar.Application.Queue.Models;
 
 public sealed record PlaybackQueueItem(
@@ -5,5 +7,6 @@ public sealed record PlaybackQueueItem(
     Guid SongId,
     string Title,
     string? Artist,
+    SongCapabilities Capabilities,
     int Position,
     string UserId = "local-desktop");

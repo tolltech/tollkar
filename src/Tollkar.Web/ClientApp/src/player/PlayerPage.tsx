@@ -2,9 +2,12 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { mutate } from '../api/request'
 import { QueueState } from '../queue/QueueState'
+import { isKaraoke } from '../queue/snapshot'
 import type { useQueue } from '../queue/useQueue'
+import { Lyrics } from './Lyrics'
+import { useKaraokeScript } from './karaoke'
 import { formatTime, playbackPosition } from './timeline'
-import { synchronizeMedia } from './media'
+import { synchronizeBackground, synchronizeMedia } from './media'
 import './player.css'
 
 export function PlayerPage() {
@@ -12,7 +15,10 @@ export function PlayerPage() {
   const current = snapshot?.items.find(item => item.id === snapshot.currentItemId)
   const currentId = current?.id
   const playback = snapshot?.playback
+  const karaoke = useKaraokeScript(isKaraoke(current) ? current?.songId : undefined)
+  const backdrop = karaoke?.background
   const video = useRef<HTMLVideoElement>(null)
+  const background = useRef<HTMLVideoElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const activated = useRef(false)
   const busy = useRef(false)
@@ -35,6 +41,7 @@ export function PlayerPage() {
   // Keep one media element across songs: browser audio permission belongs to the element.
   useEffect(() => {
     const media = video.current
+    const backdropMedia = background.current
     if (!media) return
     let disposed = false
     let starting = false
@@ -43,7 +50,7 @@ export function PlayerPage() {
 
     function synchronize() {
       if (!media || disposed) return
-      if (!connected || !playback || !currentId) { media.pause(); return }
+      if (!connected || !playback || !currentId) { media.pause(); backdropMedia?.pause(); return }
       synchronizeMedia(media, playback, performance.now(), {
         ended: advance,
         play() {
@@ -56,19 +63,26 @@ export function PlayerPage() {
           }).finally(() => { starting = false })
         },
       })
+      // The backdrop is muted, so it may start even while the audio waits for a gesture.
+      if (backdropMedia && backdrop) {
+        synchronizeBackground(backdropMedia, playback, performance.now(), backdrop.loop,
+          () => void backdropMedia.play().catch(() => {}))
+      }
     }
 
     synchronize()
     media.addEventListener('loadedmetadata', synchronize)
     media.addEventListener('canplay', synchronize)
+    backdropMedia?.addEventListener('loadedmetadata', synchronize)
     const timer = setInterval(synchronize, 1000)
     return () => {
       disposed = true
       clearInterval(timer)
       media.removeEventListener('loadedmetadata', synchronize)
       media.removeEventListener('canplay', synchronize)
+      backdropMedia?.removeEventListener('loadedmetadata', synchronize)
     }
-  }, [playback, currentId, connected])
+  }, [playback, currentId, connected, backdrop])
 
   function activateSound() {
     const media = video.current
@@ -129,7 +143,10 @@ export function PlayerPage() {
 
   return <section className="page player-page" aria-labelledby="player-title">
     <h1 id="player-title">Плеер</h1>
-    <div className="web-player" ref={stage}>
+    <div className={`web-player${karaoke ? ' web-player-karaoke' : ''}`} ref={stage}>
+      {current && backdrop && <video ref={background} className="player-backdrop" muted playsInline
+        preload="auto" tabIndex={-1} aria-hidden="true" loop={backdrop.loop}
+        src={`/api/songs/${encodeURIComponent(current.songId)}/background`} />}
       <video ref={video} src={current ? `/api/songs/${encodeURIComponent(current.songId)}/media` : undefined}
         playsInline preload="metadata" muted={!soundEnabled} aria-label={current?.title ?? 'Караоке'}
         onEmptied={() => { setError(''); setDuration(0); setPosition(0) }}
@@ -140,7 +157,12 @@ export function PlayerPage() {
           if (!event.currentTarget.error && playback?.isPlaying && playbackPosition(playback, performance.now()) >= event.currentTarget.duration - 1)
             void command('ended')
         }}
-        onError={() => { if (current) setError('Видео недоступно или его формат не поддерживается браузером. Можно перейти к следующей песне.') }} />
+        onError={() => {
+          if (current) setError(karaoke
+            ? 'Фонограмма недоступна или её формат не поддерживается браузером. Можно перейти к следующей песне.'
+            : 'Видео недоступно или его формат не поддерживается браузером. Можно перейти к следующей песне.')
+        }} />
+      {karaoke && <Lyrics lines={karaoke.lines} media={video} />}
       {!current && <p className="player-empty">Выберите песню в очереди, чтобы начать.</p>}
       <div className="player-controls">
         <button className="primary-button" disabled={disabled} onClick={() => {

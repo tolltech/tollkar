@@ -2,6 +2,7 @@ using Tollkar.Application.Library;
 using Tollkar.Application.Queue;
 using Tollkar.Application.Playback;
 using Tollkar.Core.Formats;
+using Tollkar.Core.Formats.Kfn;
 using Tollkar.Core.Formats.Video;
 using Tollkar.Infrastructure.Library;
 using Tollkar.Infrastructure.Queue;
@@ -24,7 +25,7 @@ public static class TollkarInfrastructure
 
         var repository = new SqliteLibraryRepository(databasePath);
         var providers = new SongFormatProviderRegistry(
-            [new VideoSongFormatProvider()]);
+            [new VideoSongFormatProvider(), new KfnSongFormatProvider()]);
         var scanner = new BackgroundLibraryScanner(repository, providers);
         var library = new LibraryService(repository, scanner);
         var playbackQueue = new PlaybackQueueService(

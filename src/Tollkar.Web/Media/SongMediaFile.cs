@@ -2,12 +2,32 @@ namespace Tollkar.Web.Media;
 
 internal static class SongMediaFile
 {
-    public static FileStream? Open(string root, string filePath)
+    public static FileStream? Open(string root, string filePath, string extension)
+    {
+        var path = Locate(root, filePath, extension);
+        if (path is null) return null;
+
+        try
+        {
+            return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+                bufferSize: 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                                        or ArgumentException or NotSupportedException)
+        {
+            // Stale catalog entries and unavailable files must not disclose server paths.
+            return null;
+        }
+    }
+
+    /// <summary>Returns the catalog path only when it is a file of the expected type that the
+    /// media directory really contains.</summary>
+    public static string? Locate(string root, string filePath, string extension)
     {
         try
         {
             if (!Path.IsPathFullyQualified(filePath) ||
-                !string.Equals(Path.GetExtension(filePath), ".mp4", StringComparison.OrdinalIgnoreCase))
+                !string.Equals(Path.GetExtension(filePath), extension, StringComparison.OrdinalIgnoreCase))
                 return null;
 
             var path = Path.GetFullPath(filePath);
@@ -25,8 +45,7 @@ internal static class SongMediaFile
                 if (IsLink(current)) return null;
             }
 
-            return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-                bufferSize: 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            return path;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
                                         or ArgumentException or NotSupportedException)

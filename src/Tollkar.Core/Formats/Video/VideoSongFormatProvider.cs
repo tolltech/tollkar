@@ -4,9 +4,12 @@ namespace Tollkar.Core.Formats.Video;
 
 public sealed class VideoSongFormatProvider : ISongFormatProvider
 {
+    public const string ProviderId = "video";
+    public const string Extension = ".mp4";
+
     private const string ArtistTitleSeparator = " - ";
 
-    public string Id => "video";
+    public string Id => ProviderId;
 
     public int Version => 1;
 
@@ -17,7 +20,7 @@ public sealed class VideoSongFormatProvider : ISongFormatProvider
         ArgumentNullException.ThrowIfNull(file);
         return string.Equals(
             Path.GetExtension(file.Path),
-            ".mp4",
+            Extension,
             StringComparison.OrdinalIgnoreCase);
     }
 

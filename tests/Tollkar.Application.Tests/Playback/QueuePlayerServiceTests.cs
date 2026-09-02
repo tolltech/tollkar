@@ -3,6 +3,7 @@ using Tollkar.Application.Playback.Models;
 using Tollkar.Application.Queue;
 using Tollkar.Application.Queue.Models;
 using Tollkar.Core.Playback;
+using Tollkar.Core.Songs;
 
 namespace Tollkar.Application.Tests.Playback;
 
@@ -133,6 +134,7 @@ public sealed class QueuePlayerServiceTests
         Guid.NewGuid(),
         $"Song {position}",
         "Artist",
+        SongCapabilities.Audio | SongCapabilities.Video,
         position);
 
     private sealed class StubQueue(IEnumerable<PlaybackQueueItem> items) : IPlaybackQueueService

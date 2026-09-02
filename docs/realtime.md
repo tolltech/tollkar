@@ -12,6 +12,9 @@ The existing HTTP queue API and CSRF requirements are unchanged.
   claim. Clients cannot select a user or join groups themselves.
 - After connection/start and every reconnect, invoke `GetSnapshot` without arguments.
 - `GetSnapshot` returns `{ version, items, currentItemId, playback }`; `items` has the same shape as `GET /api/queue`.
+  Each item carries the song's `capabilities` flags so a player can choose how to render it without a
+  further request: a video song plays in one element, a karaoke song plays its track under its own
+  timed lyrics.
 - `QueueChanged` sends that full snapshot to the affected user's connections after an HTTP queue
   mutation. Versions can have gaps; full snapshots mean no delta replay is needed.
 - `QueueInvalidated` has no arguments or user data. A library refresh broadcasts it to authenticated
@@ -85,6 +88,12 @@ This prevents two players reporting completion, or a delayed command, from skipp
 Missing selection and an `ended` command while paused are no-ops. Next follows current queue order;
 at its end selection and playback are normally cleared while entries remain. If queue clearing retained
 the current entry, advancing also removes that retained entry.
+
+A karaoke song adds two layers that read the same timeline instead of driving it. The backdrop clip
+is a muted element corrected against the shared position like the main one, wrapping around when it
+loops and holding its last frame when it does not. The lyrics follow the media element's own
+`currentTime` on every animation frame, because syllables turn over faster than `timeupdate` fires;
+they publish no commands and cannot affect other devices.
 
 Both the media ended event and periodic duration checks request automatic advancement. Duration
 checks recover a skipped completion during another command or a reload past the end. Only this

@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Tollkar.Core\Tollkar.Core.csproj" />
+    <ProjectReference Include="..\Tollkar.TestSupport\Tollkar.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>
