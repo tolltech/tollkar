@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tollkar.Web.Authentication;
 using Tollkar.Web.Persistence;
 using Vostok.Logging.Abstractions;
@@ -18,12 +19,15 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
     public const string Password = "Valid-password-42!";
     private readonly SaveChangesInterceptor? interceptor;
     private readonly ILog? log;
+    private readonly TimeProvider? timeProvider;
     private readonly string directory = Path.Combine(Path.GetTempPath(), "tollkar-auth-" + Guid.NewGuid().ToString("N"));
 
-    public AuthApplication(SaveChangesInterceptor? interceptor = null, ILog? log = null)
+    public AuthApplication(SaveChangesInterceptor? interceptor = null, ILog? log = null,
+        TimeProvider? timeProvider = null)
     {
         this.interceptor = interceptor;
         this.log = log;
+        this.timeProvider = timeProvider;
         Directory.CreateDirectory(directory);
     }
 
@@ -44,6 +48,12 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
         if (interceptor is not null)
             builder.ConfigureServices(services => services.ConfigureDbContext<WebDbContext>(
                 options => options.AddInterceptors(interceptor)));
+        if (timeProvider is not null)
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton(timeProvider);
+            });
     }
 
     public async Task InitializeDatabaseAsync()

@@ -21,24 +21,28 @@ public static class AuthenticationServices
             .AddEntityFrameworkStores<WebDbContext>()
             .AddSignInManager()
             .AddDefaultTokenProviders();
-        builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
-            .AddIdentityCookies();
+        var authentication = builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme);
+        authentication.AddIdentityCookies();
+        authentication.AddCookie(GuestAccess.AuthenticationScheme, options => ConfigureCookie(options, builder));
+        builder.Services.AddSingleton<GuestAccess>();
         builder.Services.ConfigureApplicationCookie(options =>
         {
+            ConfigureCookie(options, builder);
             options.Cookie.Name = "Tollkar.Auth";
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-                ? CookieSecurePolicy.SameAsRequest
-                : CookieSecurePolicy.Always;
-            options.Events.OnRedirectToLogin = context => SetStatus(context, StatusCodes.Status401Unauthorized);
-            options.Events.OnRedirectToAccessDenied = context => SetStatus(context, StatusCodes.Status403Forbidden);
         });
         builder.Services.AddAuthorization(options =>
         {
-            options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+            var authenticated = new AuthorizationPolicyBuilder(
+                    IdentityConstants.ApplicationScheme, GuestAccess.AuthenticationScheme)
+                .RequireAuthenticatedUser()
+                .Build();
+            options.DefaultPolicy = authenticated;
+            options.FallbackPolicy = authenticated;
             options.AddPolicy(AdministratorAccount.PolicyName, policy =>
-                policy.RequireAssertion(context => AdministratorAccount.IsAdministrator(context.User)));
+            {
+                policy.AuthenticationSchemes.Add(IdentityConstants.ApplicationScheme);
+                policy.RequireAssertion(context => AdministratorAccount.IsAdministrator(context.User));
+            });
         });
         builder.Services.AddAntiforgery(options =>
         {
@@ -49,6 +53,18 @@ public static class AuthenticationServices
                 ? CookieSecurePolicy.SameAsRequest
                 : CookieSecurePolicy.Always;
         });
+    }
+
+    private static void ConfigureCookie(CookieAuthenticationOptions options, WebApplicationBuilder builder)
+    {
+        options.Cookie.Name = "Tollkar.Guest";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
+        options.Events.OnRedirectToLogin = context => SetStatus(context, StatusCodes.Status401Unauthorized);
+        options.Events.OnRedirectToAccessDenied = context => SetStatus(context, StatusCodes.Status403Forbidden);
     }
 
     private static Task SetStatus(RedirectContext<CookieAuthenticationOptions> context, int status)

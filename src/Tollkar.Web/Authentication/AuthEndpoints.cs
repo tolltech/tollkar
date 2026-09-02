@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
@@ -16,9 +18,17 @@ public static class AuthEndpoints
             .AllowAnonymous();
         group.MapGet("/me", async (HttpContext context, UserManager<TollkarUser> users) =>
         {
+            if (context.User.HasClaim(GuestAccess.GuestClaim, bool.TrueString))
+                return Results.Ok(new
+                {
+                    id = context.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    login = "Гость",
+                    isAdmin = false,
+                    isGuest = true
+                });
             var user = await users.GetUserAsync(context.User);
             return user is null ? Results.Unauthorized() : Results.Ok(ToResponse(user));
-        }).AllowAnonymous();
+        });
         group.MapPost("/register", RegisterAsync)
             .LogUserAction()
             .AddEndpointFilter<ValidateAuthRequest>()
@@ -27,9 +37,10 @@ public static class AuthEndpoints
             .LogUserAction(UserActionIdentitySource.SuccessfulLogin)
             .AddEndpointFilter<ValidateAuthRequest>()
             .AllowAnonymous();
-        group.MapPost("/logout", async (SignInManager<TollkarUser> signIn) =>
+        group.MapPost("/logout", async (SignInManager<TollkarUser> signIn, HttpContext context) =>
         {
             await signIn.SignOutAsync();
+            await context.SignOutAsync(GuestAccess.AuthenticationScheme);
             return Results.NoContent();
         }).LogUserAction().AddEndpointFilter<ValidateAuthRequest>();
     }
@@ -68,6 +79,7 @@ public static class AuthEndpoints
         if (!result.Succeeded)
             return InvalidLogin();
 
+        await context.SignOutAsync(GuestAccess.AuthenticationScheme);
         context.Items[UserActionLogging.SuccessfulLoginKey] = user.UserName;
         return Results.Ok(ToResponse(user));
     }
@@ -80,6 +92,7 @@ public static class AuthEndpoints
     {
         user.Id,
         login = user.UserName,
-        isAdmin = AdministratorAccount.IsAdministrator(user)
+        isAdmin = AdministratorAccount.IsAdministrator(user),
+        isGuest = false
     };
 }

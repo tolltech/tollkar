@@ -65,6 +65,13 @@ not a client-supplied ID. The queue page provides search and queue controls; bot
 The player streams HTML5 video with synchronized playback controls.
 The frontend verifies `/api/auth/me` before rendering `/queue`, `/player` or the admin-only `/admin` page.
 
+An authenticated account sees a guest QR code on the queue page and can hide or reveal it. The code opens
+the same owner's queue and player without asking the visitor to log in. Guest sessions can search, edit the
+shared queue and control playback, but cannot open administration or issue another guest code. The signed
+link and the resulting guest session expire at the next calendar date in the server's local time; a queue
+page left open refreshes the QR code at that boundary. Persist Data Protection keys in production because
+they are also used to validate guest links.
+
 ## Library and personal queues
 
 Set `Library__DatabasePath` to the shared catalog SQLite file (default `tollkar-library.db`, relative to

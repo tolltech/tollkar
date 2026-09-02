@@ -2,12 +2,15 @@ import { useRef, useState } from 'react'
 import { NavLink, useOutletContext } from 'react-router-dom'
 import { addSong, clearQueue, moveItem, playItem, removeItem } from './api'
 import { QueueState } from './QueueState'
+import { GuestAccess } from './GuestAccess'
 import { SongDetails } from './SongDetails'
 import { SongSearch } from './SongSearch'
 import type { useQueue } from './useQueue'
 import './queue.css'
+import { useCurrentUser } from '../auth/currentUser'
 
 export function QueuePage() {
+  const user = useCurrentUser()
   const { snapshot, connected } = useOutletContext<ReturnType<typeof useQueue>>()
   const busy = useRef(false)
   const [pending, setPending] = useState(false)
@@ -42,6 +45,7 @@ export function QueuePage() {
       </div>
       <NavLink className="secondary-button" to="/player">Открыть плеер</NavLink>
     </div>
+    {!user.isGuest && <GuestAccess />}
     <QueueState />
     <div className="queue-feedback" role="status">{notice}</div>
     {error && <p className="auth-error" role="alert">{error}</p>}

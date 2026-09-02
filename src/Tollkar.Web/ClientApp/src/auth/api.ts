@@ -1,6 +1,6 @@
 import { mutate } from '../api/request'
 
-export type User = { id: string; login: string; isAdmin: boolean }
+export type User = { id: string; login: string; isAdmin: boolean; isGuest: boolean }
 
 export async function getCurrentUser(signal?: AbortSignal): Promise<User | null> {
   const response = await fetch('/api/auth/me', { credentials: 'same-origin', signal })
