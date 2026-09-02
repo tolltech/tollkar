@@ -34,6 +34,12 @@ public static class CatalogEndpoints
             return Results.NoContent();
         }).LogUserAction().SuppressAutomaticPlaybackLogging().AddEndpointFilter<ValidateAuthRequest>();
         queue.MapPost("/", AddAsync).LogUserAction().AddEndpointFilter<ValidateAuthRequest>();
+        queue.MapDelete("/", async (SynchronizedPlaybackQueue service,
+            CancellationToken cancellationToken) =>
+        {
+            await service.ClearAsync(cancellationToken);
+            return Results.NoContent();
+        }).LogUserAction().AddEndpointFilter<ValidateAuthRequest>();
         queue.MapPost("/{id:guid}/play", async (Guid id, SynchronizedPlaybackQueue service,
             CancellationToken cancellationToken) =>
         {

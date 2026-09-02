@@ -16,6 +16,11 @@ internal interface IPlaybackQueueRepository
 
     ValueTask RemoveAsync(string userId, Guid queueItemId, CancellationToken cancellationToken = default);
 
+    ValueTask RemoveAllExceptAsync(
+        string userId,
+        Guid? retainedQueueItemId,
+        CancellationToken cancellationToken = default);
+
     ValueTask MoveByAsync(
         string userId,
         Guid queueItemId,

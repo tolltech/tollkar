@@ -164,6 +164,11 @@ public sealed class QueuePlayerServiceTests
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask RemoveAllExceptAsync(
+            Guid? retainedQueueItemId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public ValueTask MoveByAsync(
             Guid queueItemId,
             int offset,

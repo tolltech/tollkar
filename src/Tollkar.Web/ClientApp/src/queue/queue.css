@@ -8,7 +8,9 @@
 .queue-feedback { color: var(--text-secondary); min-height: 44px; padding: 12px 0; overflow-wrap: anywhere; }
 .queue-columns { align-items: start; display: grid; gap: 24px; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
 .queue-panel { background: rgba(255, 255, 255, 0.025); border: 1px solid var(--border); border-radius: 20px; min-width: 0; padding: 24px; }
+.queue-panel-heading { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
 .queue-panel h2 { font-size: 22px; }
+.clear-queue-button { flex-shrink: 0; }
 .queue-count { color: var(--text-secondary); font-size: 16px; margin-left: 8px; }
 .search-label { display: block; font-size: 14px; margin-bottom: 10px; }
 .song-search { background: var(--background); border: 1px solid var(--border); border-radius: 12px; color: var(--text-primary); min-height: 48px; padding: 12px; width: 100%; }
@@ -36,6 +38,7 @@
 }
 @media (max-width: 640px) {
   .queue-panel, .current-song { padding: 16px; }
+  .queue-panel-heading { align-items: stretch; flex-direction: column; }
   .song-row:not(.queue-row) { align-items: stretch; flex-direction: column; }
   .queue-actions .primary-button { flex-basis: 100%; }
   .queue-actions .remove-button { flex: 1; }

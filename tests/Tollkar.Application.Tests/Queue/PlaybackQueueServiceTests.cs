@@ -13,6 +13,7 @@ public sealed class PlaybackQueueServiceTests
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.AddAsync(Guid.Empty).AsTask());
         await Assert.ThrowsAsync<ArgumentException>(() => service.RemoveAsync(Guid.Empty).AsTask());
+        await Assert.ThrowsAsync<ArgumentException>(() => service.RemoveAllExceptAsync(Guid.Empty).AsTask());
         await Assert.ThrowsAsync<ArgumentException>(() => service.MoveByAsync(Guid.Empty, 1).AsTask());
     }
 
@@ -25,6 +26,12 @@ public sealed class PlaybackQueueServiceTests
             ValueTask.CompletedTask;
 
         public ValueTask RemoveAsync(string userId, Guid queueItemId, CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask RemoveAllExceptAsync(
+            string userId,
+            Guid? retainedQueueItemId,
+            CancellationToken cancellationToken = default) =>
             ValueTask.CompletedTask;
 
         public ValueTask MoveByAsync(string userId, Guid queueItemId, int offset, CancellationToken cancellationToken = default) =>

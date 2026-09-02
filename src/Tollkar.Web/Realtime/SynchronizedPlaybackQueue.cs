@@ -27,6 +27,18 @@ public sealed class SynchronizedPlaybackQueue(string userId, IPlaybackQueueServi
     public ValueTask RemoveAsync(Guid queueItemId, CancellationToken cancellationToken = default) =>
         coordinator.MutateAsync(userId, queue, token => queue.RemoveAsync(queueItemId, token), cancellationToken);
 
+    public ValueTask RemoveAllExceptAsync(
+        Guid? retainedQueueItemId,
+        CancellationToken cancellationToken = default) =>
+        coordinator.MutateAsync(
+            userId,
+            queue,
+            token => queue.RemoveAllExceptAsync(retainedQueueItemId, token),
+            cancellationToken);
+
+    public ValueTask ClearAsync(CancellationToken cancellationToken = default) =>
+        coordinator.ClearAsync(userId, queue, cancellationToken);
+
     public ValueTask MoveByAsync(Guid queueItemId, int offset, CancellationToken cancellationToken = default) =>
         coordinator.MutateAsync(userId, queue, token => queue.MoveByAsync(queueItemId, offset, token), cancellationToken);
 }

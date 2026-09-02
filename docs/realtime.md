@@ -64,6 +64,8 @@ The UI debounces prefix searches by 300 ms, cancels obsolete requests and displa
 Mutation buttons are disabled during a request or connection recovery. Errors do not optimistically
 change the queue or retry mutations (an interrupted request may already have committed).
 Responsive panels stack on narrow screens, with labelled controls and touch targets of at least 44 px.
+`DELETE /api/queue` removes every pending entry. A selected entry remains current so playback is not
+interrupted; it is removed when playback advances or when another entry is selected.
 
 ## Playback protocol
 
@@ -81,7 +83,8 @@ apply only to the authenticated user's current playback revision. Every accepted
 creates a new revision; stale commands are no-ops. Queue edits do not change playback revisions.
 This prevents two players reporting completion, or a delayed command, from skipping a song.
 Missing selection and an `ended` command while paused are no-ops. Next follows current queue order;
-at its end selection and playback are cleared while entries remain.
+at its end selection and playback are normally cleared while entries remain. If queue clearing retained
+the current entry, advancing also removes that retained entry.
 
 Both the media ended event and periodic duration checks request automatic advancement. Duration
 checks recover a skipped completion during another command or a reload past the end. Only this

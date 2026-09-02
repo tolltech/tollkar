@@ -61,6 +61,10 @@ public sealed class CatalogTests : IAsyncLifetime
         Assert.Equal(new[] { first[0].Id, first[2].Id }, remaining.Select(item => item.Id));
         Assert.Equal(new[] { 0, 1 }, remaining.Select(item => item.Position));
         Assert.Equal(second, await QueueAsync(bob));
+
+        (await MutateAsync(bob, HttpMethod.Delete, "/api/queue")).EnsureSuccessStatusCode();
+        Assert.Empty(await QueueAsync(bob));
+        Assert.Equal(remaining, await QueueAsync(alice));
     }
 
     [Fact]
@@ -88,6 +92,7 @@ public sealed class CatalogTests : IAsyncLifetime
             (await client.PostAsJsonAsync("/api/queue", new { songId = songs[0].Id })).StatusCode);
         (await MutateAsync(client, HttpMethod.Post, "/api/queue", new { songId = songs[0].Id })).EnsureSuccessStatusCode();
         var item = Assert.Single(await QueueAsync(client));
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.DeleteAsync("/api/queue")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.DeleteAsync($"/api/queue/{item.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest,
             (await client.PostAsJsonAsync($"/api/queue/{item.Id}/move", new { offset = 1 })).StatusCode);
@@ -98,6 +103,7 @@ public sealed class CatalogTests : IAsyncLifetime
     [InlineData("GET", "/api/library/search")]
     [InlineData("GET", "/api/queue")]
     [InlineData("POST", "/api/queue")]
+    [InlineData("DELETE", "/api/queue")]
     [InlineData("DELETE", "/api/queue/00000000-0000-0000-0000-000000000001")]
     [InlineData("POST", "/api/queue/00000000-0000-0000-0000-000000000001/move")]
     public async Task AnonymousCatalogRequestsAreUnauthorized(string method, string path)

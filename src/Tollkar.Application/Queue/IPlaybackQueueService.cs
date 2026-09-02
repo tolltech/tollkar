@@ -13,6 +13,10 @@ public interface IPlaybackQueueService
 
     ValueTask RemoveAsync(Guid queueItemId, CancellationToken cancellationToken = default);
 
+    ValueTask RemoveAllExceptAsync(
+        Guid? retainedQueueItemId,
+        CancellationToken cancellationToken = default);
+
     ValueTask MoveByAsync(
         Guid queueItemId,
         int offset,

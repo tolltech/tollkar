@@ -56,6 +56,16 @@ public sealed class TollkarInfrastructureTests : IDisposable
         await reopened.PlaybackQueue.RemoveAsync(persisted[0].Id);
         var remaining = Assert.Single(await reopened.PlaybackQueue.GetItemsAsync());
         Assert.Equal(0, remaining.Position);
+
+        await reopened.PlaybackQueue.AddAsync(songs[1].Id);
+        var retained = (await reopened.PlaybackQueue.GetItemsAsync())[1];
+        await reopened.PlaybackQueue.RemoveAllExceptAsync(retained.Id);
+        var cleared = Assert.Single(await reopened.PlaybackQueue.GetItemsAsync());
+        Assert.Equal(retained.Id, cleared.Id);
+        Assert.Equal(0, cleared.Position);
+
+        await reopened.PlaybackQueue.RemoveAllExceptAsync(null);
+        Assert.Empty(await reopened.PlaybackQueue.GetItemsAsync());
     }
 
     public void Dispose()

@@ -70,6 +70,27 @@ internal sealed class SqlitePlaybackQueueRepository(string databasePath) : IPlay
         }, cancellationToken);
     }
 
+    public async ValueTask RemoveAllExceptAsync(
+        string userId,
+        Guid? retainedQueueItemId,
+        CancellationToken cancellationToken = default)
+    {
+        await InWriteLockAsync(async () =>
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqliteTransaction)transaction;
+            command.CommandText = "DELETE FROM PlaybackQueue WHERE UserId=$user AND ($retained IS NULL OR Id<>$retained); UPDATE PlaybackQueue SET Position=0 WHERE UserId=$user AND Id=$retained;";
+            command.Parameters.AddWithValue("$user", userId);
+            command.Parameters.AddWithValue(
+                "$retained",
+                retainedQueueItemId is { } id ? id.ToString() : DBNull.Value);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }, cancellationToken);
+    }
+
     public async ValueTask MoveByAsync(
         string userId,
         Guid queueItemId,

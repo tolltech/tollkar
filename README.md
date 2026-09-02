@@ -103,6 +103,8 @@ All catalog endpoints require authentication:
 - `GET /api/queue`: current user's ordered queue, including `id`, `songId`, `title`, `artist`,
   zero-based `position` and `userId`.
 - `POST /api/queue` with `{ "songId": "..." }`: append a library song (duplicates allowed).
+- `DELETE /api/queue`: clear the queue. If a song is currently playing, it remains until playback
+  advances or another song is selected, then it is removed.
 - `DELETE /api/queue/{id}`: remove a queue entry.
 - `POST /api/queue/{id}/move` with `{ "offset": -1 }`: move relative to its current position,
   clamping to the first/last position.
@@ -157,6 +159,7 @@ the browser (a playable container alone does not guarantee codec support).
 
 The server keeps a monotonic playback timeline; reloading or reconnecting restores the selected song,
 position and play/pause state. During connection recovery the browser pauses until a fresh snapshot
-arrives. An active player advances to the next queue entry at the end; the last entry clears selection
-without deleting the queue. If all players are closed, advancement waits until a player returns.
+arrives. An active player advances to the next queue entry at the end; the last entry normally clears
+selection without deleting the queue. A current entry retained by clearing the queue is removed when
+playback advances. If all players are closed, advancement waits until a player returns.
 Server restart resets playback; persisted queue entries remain. See [the protocol](docs/realtime.md).

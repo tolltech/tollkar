@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { NavLink, useOutletContext } from 'react-router-dom'
-import { addSong, moveItem, playItem, removeItem } from './api'
+import { addSong, clearQueue, moveItem, playItem, removeItem } from './api'
 import { QueueState } from './QueueState'
 import { SongDetails } from './SongDetails'
 import { SongSearch } from './SongSearch'
@@ -48,7 +48,13 @@ export function QueuePage() {
     <div className="queue-columns">
       <SongSearch disabled={disabled} onAdd={song => void execute(() => addSong(song.id), `Добавлено: ${song.title}`)} />
       <section className="queue-panel" aria-labelledby="up-next-title" aria-busy={pending}>
-        <h2 id="up-next-title">В очереди <span className="queue-count">{snapshot?.items.length ?? '…'}</span></h2>
+        <div className="queue-panel-heading">
+          <h2 id="up-next-title">В очереди <span className="queue-count">{snapshot?.items.length ?? '…'}</span></h2>
+          <button className="secondary-button clear-queue-button" disabled={disabled || !snapshot?.items.length}
+            onClick={() => void execute(clearQueue, snapshot?.currentItemId
+              ? 'Очередь очищена. Текущая песня доиграет.'
+              : 'Очередь очищена.')}>Очистить очередь</button>
+        </div>
         {snapshot?.items.length === 0 && <div className="queue-empty"><span aria-hidden="true">♫</span><h3>Споём что-нибудь?</h3><p>Добавьте первую песню из поиска.</p></div>}
         <ol className="song-list queue-list">
           {snapshot?.items.map((item, index) => <li key={item.id} className={`song-row queue-row${snapshot.currentItemId === item.id ? ' is-current' : ''}`}>

@@ -11,6 +11,7 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILog log,
     private readonly SemaphoreSlim gate = new(1, 1);
     private long version;
     private readonly Dictionary<string, Guid> currentItems = new();
+    private readonly Dictionary<string, Guid> retainedUntilAdvance = new();
     private readonly Dictionary<string, PlaybackTimeline> playback = new();
     private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
     private readonly ILog logger = log.ForContext<QueueStateCoordinator>();
@@ -45,6 +46,11 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILog log,
                 case "ended":
                     if (command.Action == "ended" && !state.IsPlaying) return;
                     var next = snapshot.Items.SkipWhile(item => item.Id != snapshot.CurrentItemId).Skip(1).FirstOrDefault();
+                    if (retainedUntilAdvance.Remove(userId, out var retainedItemId) &&
+                        retainedItemId == snapshot.CurrentItemId)
+                    {
+                        await queue.RemoveAsync(retainedItemId, token);
+                    }
                     if (next is null)
                     {
                         currentItems.Remove(userId);
@@ -76,8 +82,32 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILog log,
             var items = await queue.GetItemsAsync(token);
             if (items.Any(item => item.Id == queueItemId))
             {
+                if (retainedUntilAdvance.TryGetValue(userId, out var retainedItemId) &&
+                    retainedItemId != queueItemId)
+                {
+                    await queue.RemoveAsync(retainedItemId, token);
+                    retainedUntilAdvance.Remove(userId);
+                }
                 currentItems[userId] = queueItemId;
                 SetPlayback(userId, true, 0);
+            }
+        }, cancellationToken);
+
+    public ValueTask ClearAsync(
+        string userId,
+        IPlaybackQueueService queue,
+        CancellationToken cancellationToken) =>
+        MutateAsync(userId, queue, async token =>
+        {
+            var snapshot = await CaptureAsync(userId, queue, token);
+            await queue.RemoveAllExceptAsync(snapshot.CurrentItemId, token);
+            if (snapshot.CurrentItemId is { } currentItemId)
+            {
+                retainedUntilAdvance[userId] = currentItemId;
+            }
+            else
+            {
+                retainedUntilAdvance.Remove(userId);
             }
         }, cancellationToken);
 
@@ -89,6 +119,7 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILog log,
         if (currentId is not null && !items.Any(item => item.Id == currentId))
         {
             currentItems.Remove(userId);
+            retainedUntilAdvance.Remove(userId);
             playback.Remove(userId);
             currentId = null;
         }

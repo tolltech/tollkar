@@ -11,6 +11,7 @@ export async function searchSongs(text: string, signal: AbortSignal): Promise<So
 }
 
 export const addSong = (songId: string) => mutate('/api/queue', 'POST', { songId })
+export const clearQueue = () => mutate('/api/queue', 'DELETE')
 export const removeItem = (id: string) => mutate(`/api/queue/${encodeURIComponent(id)}`, 'DELETE')
 export const moveItem = (id: string, offset: -1 | 1) => mutate(`/api/queue/${encodeURIComponent(id)}/move`, 'POST', { offset })
 export const playItem = (id: string) => mutate(`/api/queue/${encodeURIComponent(id)}/play`, 'POST')

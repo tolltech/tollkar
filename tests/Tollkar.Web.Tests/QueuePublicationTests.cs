@@ -94,6 +94,44 @@ public sealed class QueuePublicationTests
         Assert.Equal(3, finished.Items.Count);
     }
 
+    [Fact]
+    public async Task ClearKeepsCurrentItemUntilPlaybackAdvances()
+    {
+        var publicationCount = 0;
+        var client = new TestClient
+        {
+            Publish = _ =>
+            {
+                publicationCount++;
+                return Task.CompletedTask;
+            }
+        };
+        using var coordinator = new QueueStateCoordinator(new TestHubContext(client),
+            new SilentLog());
+        var queue = new TestQueue();
+        var service = new SynchronizedPlaybackQueue("alice", queue, coordinator);
+        for (var i = 0; i < 3; i++) await service.AddAsync(Guid.NewGuid());
+        var currentItemId = queue.Items[0].Id;
+        await service.PlayNowAsync(currentItemId);
+        var publicationsBeforeClear = publicationCount;
+
+        await service.ClearAsync();
+
+        Assert.Equal(publicationsBeforeClear + 1, publicationCount);
+        var cleared = await service.GetSnapshotAsync();
+        Assert.Equal(currentItemId, Assert.Single(cleared.Items).Id);
+        Assert.Equal(currentItemId, cleared.CurrentItemId);
+        Assert.NotNull(cleared.Playback);
+
+        await service.AddAsync(Guid.NewGuid());
+        await service.ControlAsync(new("ended", cleared.Playback!.Revision));
+
+        var advanced = await service.GetSnapshotAsync();
+        Assert.Single(advanced.Items);
+        Assert.NotEqual(currentItemId, advanced.Items[0].Id);
+        Assert.Equal(advanced.Items[0].Id, advanced.CurrentItemId);
+    }
+
     private sealed class PlaybackClock : TimeProvider
     {
         private long timestamp;
@@ -115,8 +153,18 @@ public sealed class QueuePublicationTests
             Items.Add(new(Guid.NewGuid(), songId, "Song", null, Items.Count, "alice"));
             return ValueTask.CompletedTask;
         }
-        public ValueTask RemoveAsync(Guid queueItemId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+        public ValueTask RemoveAsync(Guid queueItemId, CancellationToken cancellationToken = default)
+        {
+            Items.RemoveAll(item => item.Id == queueItemId);
+            return ValueTask.CompletedTask;
+        }
+        public ValueTask RemoveAllExceptAsync(
+            Guid? retainedQueueItemId,
+            CancellationToken cancellationToken = default)
+        {
+            Items.RemoveAll(item => item.Id != retainedQueueItemId);
+            return ValueTask.CompletedTask;
+        }
         public ValueTask MoveByAsync(Guid queueItemId, int offset, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }

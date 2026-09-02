@@ -34,6 +34,18 @@ internal sealed class PlaybackQueueService(
         return _repository.RemoveAsync(_userId, queueItemId, cancellationToken);
     }
 
+    public ValueTask RemoveAllExceptAsync(
+        Guid? retainedQueueItemId,
+        CancellationToken cancellationToken = default)
+    {
+        if (retainedQueueItemId == Guid.Empty)
+        {
+            throw new ArgumentException("ID cannot be empty.", nameof(retainedQueueItemId));
+        }
+
+        return _repository.RemoveAllExceptAsync(_userId, retainedQueueItemId, cancellationToken);
+    }
+
     public ValueTask MoveByAsync(
         Guid queueItemId,
         int offset,
