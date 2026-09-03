@@ -6,6 +6,7 @@ export type AdminSong = {
   artist: string | null
   duration: string | null
   capabilities: number
+  playCount: number
   folder: string | null
 }
 

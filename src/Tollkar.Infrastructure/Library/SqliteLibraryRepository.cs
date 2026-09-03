@@ -8,9 +8,10 @@ namespace Tollkar.Infrastructure.Library;
 internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRepository
 {
     private const int SchemaVersion = 5;
-    private const string SongColumns = "s.Id,s.Title,s.Artist,s.DurationTicks,s.Capabilities,r.Path,f.Path";
+    private const string SongColumns = "s.Id,s.Title,s.Artist,s.DurationTicks,s.Capabilities,s.PlayCount,r.Path,f.Path";
     private const string SongJoins = "JOIN Files f ON f.SongId=s.Id JOIN LibraryRoots r ON r.Id=s.RootId";
-    private const string SongOrderAndLimit = "ORDER BY s.Artist,s.Title LIMIT $limit;";
+    private const string SongFolderSort = "CASE WHEN instr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),'/') > 0 THEN substr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),1,instr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),'/')-1) END";
+    private const string SongOrderAndLimit = "ORDER BY s.PlayCount DESC," + SongFolderSort + ",s.Artist,s.Title,s.Id LIMIT $limit;";
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     private readonly string _connectionString = new SqliteConnectionStringBuilder
@@ -183,7 +184,7 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
         }
         command.Parameters.AddWithValue("$limit", query.ValidatedLimit);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken)) songs.Add(new(Guid.Parse(reader.GetString(0)), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.IsDBNull(3) ? null : TimeSpan.FromTicks(reader.GetInt64(3)), (SongCapabilities)reader.GetInt32(4), SongFolder.FromPath(reader.GetString(5), reader.GetString(6))));
+        while (await reader.ReadAsync(cancellationToken)) songs.Add(new(Guid.Parse(reader.GetString(0)), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2), reader.IsDBNull(3) ? null : TimeSpan.FromTicks(reader.GetInt64(3)), (SongCapabilities)reader.GetInt32(4), reader.GetInt32(5), SongFolder.FromPath(reader.GetString(6), reader.GetString(7))));
         return songs;
     }
 

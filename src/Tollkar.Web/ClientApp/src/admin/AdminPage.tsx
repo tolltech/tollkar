@@ -127,9 +127,9 @@ export function AdminPage() {
         {!catalogLoading && catalog && catalog.items.length === 0 && <p className="page-description">Песни не найдены.</p>}
         {catalog && catalog.items.length > 0 && <div className="admin-song-table-wrap">
           <table className="admin-song-table">
-            <thead><tr><th>Исполнитель</th><th>Название</th><th>Папка</th><th /></tr></thead>
+            <thead><tr><th>Исполнитель</th><th>Название</th><th>Папка</th><th>Запуски</th><th /></tr></thead>
             <tbody>{catalog.items.map(song => <tr key={song.id}>
-              <td>{song.artist ?? '—'}</td><td>{song.title}</td><td>{song.folder ?? '—'}</td>
+              <td>{song.artist ?? '—'}</td><td>{song.title}</td><td>{song.folder ?? '—'}</td><td>{song.playCount}</td>
               <td><button className="secondary-button" disabled={deletingId !== null} onClick={() => removeSong(song)}>
                 {deletingId === song.id ? 'Удаляем…' : 'Удалить'}
               </button></td>

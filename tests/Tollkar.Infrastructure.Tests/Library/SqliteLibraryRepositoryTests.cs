@@ -42,6 +42,7 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
 
         Assert.Equal("Кино", song.Artist);
         Assert.Equal("Группа крови", song.Title);
+        Assert.Equal(0, song.PlayCount);
         Assert.Equal(3, indexedFile?.ProviderVersion);
         Assert.Equal(Path.GetFullPath(file.Path), playableSong?.Source.FilePath);
         Assert.Equal("video", playableSong?.Source.ProviderId);
@@ -94,6 +95,42 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
         Assert.Equal("Сборник", all["Кукушка"]);
         Assert.Equal("Лучшее", all["Легенда"]);
         Assert.Equal("Сборник", Assert.Single(matched).Folder);
+    }
+
+    [Fact]
+    public async Task SearchOrdersSongsByPlayCountThenFolderArtistAndTitle()
+    {
+        var repository = new SqliteLibraryRepository(Path.Combine(_directory, "library.db"));
+        await repository.InitializeAsync();
+        var rootPath = Path.Combine(_directory, "songs");
+        var root = await repository.AddRootAsync(rootPath);
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Zeta - Root.mp4"), "Root", "Zeta");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Bravo", "Zeta - B.mp4"), "B", "Zeta");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Alpha", "Zeta - A.mp4"), "A", "Zeta");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Alpha", "Alpha - A.mp4"), "A", "Alpha");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Bravo", "Alpha - A.mp4"), "A", "Alpha");
+        var popularSong = Assert.Single(await repository.SearchSongsAsync(new LibrarySearchQuery("Root")));
+        await repository.IncrementPlayCountAsync(popularSong.Id);
+
+        var songs = await repository.SearchSongsAsync(new());
+
+        Assert.Equal(
+            new[] { "Root", "A", "A", "A", "B" },
+            songs.Select(song => song.Title));
+        Assert.Equal(
+            new string?[] { null, "Alpha", "Alpha", "Bravo", "Bravo" },
+            songs.Select(song => song.Folder));
+        Assert.Equal(
+            new string?[] { "Zeta", "Alpha", "Zeta", "Alpha", "Zeta" },
+            songs.Select(song => song.Artist));
+
+        var limited = await repository.SearchSongsAsync(new LibrarySearchQuery(Limit: 2));
+        Assert.Equal(new[] { "Root", "A" }, limited.Select(song => song.Title));
+        Assert.Equal(new string?[] { null, "Alpha" }, limited.Select(song => song.Folder));
+
+        await repository.IncrementPlayCountAsync((await repository.SearchSongsAsync(new LibrarySearchQuery("B"))).Single().Id);
+        var reordered = await repository.SearchSongsAsync(new());
+        Assert.Equal(new[] { "Root", "B", "A", "A", "A" }, reordered.Select(song => song.Title));
     }
 
     [Fact]
@@ -224,13 +261,14 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
         SqliteLibraryRepository repository,
         Guid rootId,
         string path,
-        string title) =>
+        string title,
+        string artist = "Кино") =>
         repository.UpsertSongAsync(
             rootId,
             new FileCandidate(path, size: 1, lastWriteTime: DateTimeOffset.UnixEpoch),
             "video",
             1,
-            new SongMetadata(title, "Кино", null, SongCapabilities.Video));
+            new SongMetadata(title, artist, null, SongCapabilities.Video));
 
     public void Dispose()
     {

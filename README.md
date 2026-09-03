@@ -118,7 +118,8 @@ backup and use the previous application version (personal queues created after t
 All catalog endpoints require authentication:
 
 - `GET /api/library/search?text=Artist&limit=100`: title/artist prefix search, or browse without text;
-  limit is 1–500. Returns metadata only, never local file paths.
+  limit is 1–500. Results are sorted by play count descending, then folder, artist and title.
+  Each result includes the play count; responses contain metadata only, never local file paths.
 - `GET /api/queue`: current user's ordered queue, including `id`, `songId`, `title`, `artist`,
   `capabilities`, zero-based `position` and `userId`. `capabilities` is a flags value describing what
   the song offers (audio, video, synchronized lyrics); the player picks its mode from it.

@@ -8,4 +8,5 @@ public sealed record LibrarySong(
     string? Artist,
     TimeSpan? Duration,
     SongCapabilities Capabilities,
+    int PlayCount,
     string? Folder);
