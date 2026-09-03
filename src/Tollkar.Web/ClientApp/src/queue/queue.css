@@ -3,6 +3,9 @@
 .guest-access-heading { align-items: center; display: flex; gap: 20px; justify-content: space-between; }
 .guest-access-heading h2 { font-size: 20px; margin: 0 0 6px; }
 .guest-access-heading p { color: var(--text-secondary); margin: 0; }
+.guest-access-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.guest-access-feedback { color: #8de8bd; margin: 16px 0 0; overflow-wrap: anywhere; }
+.guest-access-feedback.is-error { color: #ffacba; }
 .guest-access-code { align-items: center; display: flex; flex-direction: column; gap: 10px; padding-top: 18px; text-align: center; }
 .guest-access-code img { background: white; border-radius: 12px; display: block; height: min(260px, 70vw); padding: 10px; width: min(260px, 70vw); }
 .guest-access-code small { color: var(--text-secondary); }
@@ -46,6 +49,7 @@
 }
 @media (max-width: 640px) {
   .guest-access-heading { align-items: stretch; flex-direction: column; }
+  .guest-access-actions { flex-direction: column; }
   .queue-panel, .current-song { padding: 16px; }
   .queue-panel-heading { align-items: stretch; flex-direction: column; }
   .song-row:not(.queue-row) { align-items: stretch; flex-direction: column; }
