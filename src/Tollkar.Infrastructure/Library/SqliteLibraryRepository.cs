@@ -7,7 +7,7 @@ namespace Tollkar.Infrastructure.Library;
 
 internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRepository
 {
-    private const int SchemaVersion = 4;
+    private const int SchemaVersion = 5;
     private const string SongColumns = "s.Id,s.Title,s.Artist,s.DurationTicks,s.Capabilities,r.Path,f.Path";
     private const string SongJoins = "JOIN Files f ON f.SongId=s.Id JOIN LibraryRoots r ON r.Id=s.RootId";
     private const string SongOrderAndLimit = "ORDER BY s.Artist,s.Title LIMIT $limit;";
@@ -116,6 +116,17 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
                 """;
             await command.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            version = 4;
+        }
+
+        if (version == 4)
+        {
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqliteTransaction)transaction;
+            command.CommandText = "ALTER TABLE Songs ADD COLUMN PlayCount INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 5;";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
     }
 
@@ -191,6 +202,15 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
             reader.IsDBNull(2) ? null : TimeSpan.FromTicks(reader.GetInt64(2)),
             (SongCapabilities)reader.GetInt32(3));
         return new(songId, metadata, new SongSource(reader.GetString(4), reader.GetString(5)));
+    }
+
+    public async ValueTask IncrementPlayCountAsync(Guid songId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Songs SET PlayCount = PlayCount + 1 WHERE Id=$id;";
+        command.Parameters.AddWithValue("$id", songId.ToString());
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async ValueTask<IndexedFileRecord?> GetIndexedFileAsync(

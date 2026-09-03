@@ -43,6 +43,13 @@ internal sealed class PlayerService(
             try
             {
                 await session.PlayAsync(cancellationToken);
+                try
+                {
+                    await library.IncrementPlayCountAsync(song.Id, cancellationToken);
+                }
+                catch (Exception)
+                {
+                }
                 PublishSessionSnapshot(session);
             }
             catch (Exception playbackException)

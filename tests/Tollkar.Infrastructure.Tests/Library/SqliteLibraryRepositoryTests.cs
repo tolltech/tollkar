@@ -50,6 +50,29 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task PlaybackCountStartsAtZeroAndSurvivesRestart()
+    {
+        var databasePath = Path.Combine(_directory, "library.db");
+        var repository = new SqliteLibraryRepository(databasePath);
+        await repository.InitializeAsync();
+        var root = await repository.AddRootAsync(Path.Combine(_directory, "karaoke"));
+        var songId = await IndexSongAsync(repository, root.Id, Path.Combine(_directory, "song.mp4"), "Song");
+
+        await repository.IncrementPlayCountAsync(songId);
+        await repository.IncrementPlayCountAsync(songId);
+
+        await using var connection = new SqliteConnection($"Data Source={databasePath}");
+        await connection.OpenAsync();
+        await using var versionCommand = connection.CreateCommand();
+        versionCommand.CommandText = "PRAGMA user_version;";
+        Assert.Equal(5L, await versionCommand.ExecuteScalarAsync());
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT PlayCount FROM Songs WHERE Id=$id;";
+        command.Parameters.AddWithValue("$id", songId.ToString());
+        Assert.Equal(2L, await command.ExecuteScalarAsync());
+    }
+
+    [Fact]
     public async Task SearchLabelsSongsWithTheirFirstFolderUnderTheRoot()
     {
         var repository = new SqliteLibraryRepository(Path.Combine(_directory, "library.db"));
@@ -144,7 +167,7 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
         {
             await connection.OpenAsync();
             await using var command = connection.CreateCommand();
-            command.CommandText = "DROP TABLE PlaybackQueue; PRAGMA user_version = 2;";
+            command.CommandText = "DROP TABLE PlaybackQueue; ALTER TABLE Songs DROP COLUMN PlayCount; PRAGMA user_version = 2;";
             await command.ExecuteNonQueryAsync();
         }
 
@@ -176,11 +199,12 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
             await connection.OpenAsync();
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                DROP INDEX IX_PlaybackQueue_UserId_Position;
-                ALTER TABLE PlaybackQueue DROP COLUMN UserId;
-                CREATE INDEX IX_PlaybackQueue_Position ON PlaybackQueue(Position);
-                PRAGMA user_version = 3;
-                """;
+            DROP INDEX IX_PlaybackQueue_UserId_Position;
+            ALTER TABLE PlaybackQueue DROP COLUMN UserId;
+            ALTER TABLE Songs DROP COLUMN PlayCount;
+            CREATE INDEX IX_PlaybackQueue_Position ON PlaybackQueue(Position);
+            PRAGMA user_version = 3;
+            """;
             await command.ExecuteNonQueryAsync();
         }
 

@@ -59,6 +59,18 @@ internal sealed class LibraryService(
         return _repository.GetSongAsync(songId, cancellationToken);
     }
 
+    public ValueTask IncrementPlayCountAsync(
+        Guid songId,
+        CancellationToken cancellationToken = default)
+    {
+        if (songId == Guid.Empty)
+        {
+            throw new ArgumentException("Song ID cannot be empty.", nameof(songId));
+        }
+
+        return _repository.IncrementPlayCountAsync(songId, cancellationToken);
+    }
+
     public async IAsyncEnumerable<LibraryIndexProgress> RefreshRootAsync(
         Guid rootId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)

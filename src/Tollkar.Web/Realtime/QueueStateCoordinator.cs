@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.SignalR;
+using Tollkar.Application.Library;
 using Tollkar.Application.Queue;
 using Vostok.Logging.Abstractions;
 
 namespace Tollkar.Web.Realtime;
 
 public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILog log,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null, IServiceProvider? services = null)
     : IDisposable
 {
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -60,6 +61,7 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILog log,
                     {
                         currentItems[userId] = next.Id;
                         SetPlayback(userId, true, 0);
+                        await RecordPlaybackAsync(next.SongId, token);
                     }
                     break;
             }
@@ -90,8 +92,23 @@ public sealed class QueueStateCoordinator(IHubContext<KaraokeHub> hub, ILog log,
                 }
                 currentItems[userId] = queueItemId;
                 SetPlayback(userId, true, 0);
+                await RecordPlaybackAsync(items.First(item => item.Id == queueItemId).SongId, token);
             }
         }, cancellationToken);
+
+    private async ValueTask RecordPlaybackAsync(Guid songId, CancellationToken cancellationToken)
+    {
+        var library = services?.GetService<ILibraryService>();
+        if (library is null) return;
+        try
+        {
+            await library.IncrementPlayCountAsync(songId, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.Warn(exception, "Unable to record playback for song {SongId}.", songId);
+        }
+    }
 
     public ValueTask ClearAsync(
         string userId,

@@ -21,6 +21,8 @@ public interface ILibraryService
 
     ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default);
 
+    ValueTask IncrementPlayCountAsync(Guid songId, CancellationToken cancellationToken = default);
+
     IAsyncEnumerable<LibraryIndexProgress> RefreshRootAsync(
         Guid rootId,
         CancellationToken cancellationToken = default);

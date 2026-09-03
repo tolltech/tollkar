@@ -112,6 +112,11 @@ public sealed class LibraryServiceTests
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<Tollkar.Core.Songs.Song?>(null);
 
+        public ValueTask IncrementPlayCountAsync(
+            Guid songId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
         public ValueTask<IndexedFileRecord?> GetIndexedFileAsync(
             string path,
             CancellationToken cancellationToken = default) =>

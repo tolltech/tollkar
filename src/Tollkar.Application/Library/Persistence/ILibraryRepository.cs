@@ -25,6 +25,8 @@ internal interface ILibraryRepository
 
     ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default);
 
+    ValueTask IncrementPlayCountAsync(Guid songId, CancellationToken cancellationToken = default);
+
     ValueTask<IndexedFileRecord?> GetIndexedFileAsync(
         string path,
         CancellationToken cancellationToken = default);

@@ -23,6 +23,9 @@ public sealed class SynchronizedLibrary(ILibraryService library, QueueStateCoord
     public ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default) =>
         library.GetSongAsync(songId, cancellationToken);
 
+    public ValueTask IncrementPlayCountAsync(Guid songId, CancellationToken cancellationToken = default) =>
+        library.IncrementPlayCountAsync(songId, cancellationToken);
+
     public async IAsyncEnumerable<LibraryIndexProgress> RefreshRootAsync(Guid rootId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {

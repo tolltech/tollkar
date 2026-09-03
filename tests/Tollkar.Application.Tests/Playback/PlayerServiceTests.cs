@@ -16,8 +16,9 @@ public sealed class PlayerServiceTests
     {
         var song = CreateSong();
         var session = new StubSession(song);
+        var library = new StubLibrary(song);
         var service = new PlayerService(
-            new StubLibrary(song),
+            library,
             new SongPlaybackProviderRegistry([new StubProvider(session)]));
 
         await service.PlayAsync(song.Id);
@@ -30,6 +31,7 @@ public sealed class PlayerServiceTests
         Assert.Equal(TimeSpan.FromSeconds(5), service.Snapshot.Position);
         Assert.Equal(2, session.PlayCount);
         Assert.Equal(1, session.PauseCount);
+        Assert.Equal(1, library.PlayCount);
         await service.DisposeAsync();
         Assert.True(session.IsDisposed);
         Assert.Equal(PlayerSnapshot.Empty, service.Snapshot);
@@ -150,11 +152,18 @@ public sealed class PlayerServiceTests
 
     private sealed class StubLibrary(Song song) : ILibraryService
     {
+        public int PlayCount { get; private set; }
+
         public ValueTask InitializeAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask<LibraryRootSummary> AddRootAsync(string path, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<IReadOnlyList<LibraryRootSummary>> GetRootsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<IReadOnlyList<LibrarySong>> SearchSongsAsync(LibrarySearchQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default) => ValueTask.FromResult(songId == song.Id ? song : null);
+        public ValueTask IncrementPlayCountAsync(Guid songId, CancellationToken cancellationToken = default)
+        {
+            PlayCount++;
+            return ValueTask.CompletedTask;
+        }
         public async IAsyncEnumerable<LibraryIndexProgress> RefreshRootAsync(
             Guid rootId,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
