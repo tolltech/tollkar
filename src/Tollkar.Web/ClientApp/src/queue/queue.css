@@ -59,4 +59,4 @@
   .user-menu { justify-content: space-between; min-width: 0; }
   .user-menu > span { min-width: 0; }
 }
-.search-results { max-height: 60vh; overflow-y: auto; padding: 0 4px; scrollbar-gutter: stable; }
+.search-results { height: 60vh; overflow-y: auto; padding: 0 4px; scrollbar-gutter: stable; }

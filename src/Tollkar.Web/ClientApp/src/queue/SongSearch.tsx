@@ -38,17 +38,19 @@ export function SongSearch({ disabled, onAdd }: Props) {
     <input id="song-search" className="song-search" type="search" placeholder="Начните вводить название…"
       value={text} onChange={event => { resetSearch(); setText(event.target.value) }} />
     <p className="queue-hint">Поиск по началу названия или имени исполнителя.</p>
-    <div role="status">
-      {loading && <p>Ищем песни…</p>}
-      {!loading && !error && <p className="queue-hint">{songs.length === 100 ? 'Первые 100 песен — уточните поиск.' : `Найдено: ${songs.length}`}</p>}
+    <div className="search-results" role="region" tabIndex={0} aria-label="Результаты поиска" aria-busy={loading}>
+      <div role="status">
+        {loading && <p>Ищем песни…</p>}
+        {!loading && !error && <p className="queue-hint">{songs.length === 100 ? 'Первые 100 песен — уточните поиск.' : `Найдено: ${songs.length}`}</p>}
+      </div>
+      {error && <div role="alert"><p>{error}</p><button className="secondary-button" onClick={() => { resetSearch(); setAttempt(value => value + 1) }}>Повторить поиск</button></div>}
+      {!loading && !error && songs.length === 0 && <p className="queue-hint">{text.trim() ? 'Ничего не найдено. Попробуйте другое название.' : 'В библиотеке пока нет песен.'}</p>}
+      <ul className="song-list">
+        {songs.map(song => <li className="song-row" key={song.id}>
+          <SongDetails song={song} />
+          <button className="secondary-button" disabled={disabled} aria-label={`Добавить в очередь: ${song.title}`} onClick={() => onAdd(song)}>+ Добавить</button>
+        </li>)}
+      </ul>
     </div>
-    {error && <div role="alert"><p>{error}</p><button className="secondary-button" onClick={() => { resetSearch(); setAttempt(value => value + 1) }}>Повторить поиск</button></div>}
-    {!loading && !error && songs.length === 0 && <p className="queue-hint">{text.trim() ? 'Ничего не найдено. Попробуйте другое название.' : 'В библиотеке пока нет песен.'}</p>}
-    <ul className="song-list search-results" tabIndex={0} aria-label="Результаты поиска" aria-busy={loading}>
-      {songs.map(song => <li className="song-row" key={song.id}>
-        <SongDetails song={song} />
-        <button className="secondary-button" disabled={disabled} aria-label={`Добавить в очередь: ${song.title}`} onClick={() => onAdd(song)}>+ Добавить</button>
-      </li>)}
-    </ul>
   </section>
 }
