@@ -23,6 +23,10 @@ internal interface ILibraryRepository
         LibrarySearchQuery query,
         CancellationToken cancellationToken = default);
 
+    ValueTask<LibrarySongCounts> GetSongCountsAsync(
+        string? text = null,
+        CancellationToken cancellationToken = default);
+
     ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default);
 
     ValueTask IncrementPlayCountAsync(Guid songId, CancellationToken cancellationToken = default);

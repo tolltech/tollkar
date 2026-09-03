@@ -107,6 +107,9 @@ public sealed class LibraryServiceTests
             return ValueTask.FromResult<IReadOnlyList<LibrarySong>>([]);
         }
 
+        public ValueTask<LibrarySongCounts> GetSongCountsAsync(string? text = null,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(new LibrarySongCounts(0, 0));
+
         public ValueTask<Tollkar.Core.Songs.Song?> GetSongAsync(
             Guid songId,
             CancellationToken cancellationToken = default) =>

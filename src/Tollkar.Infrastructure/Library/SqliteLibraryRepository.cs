@@ -187,6 +187,23 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
         return songs;
     }
 
+    public async ValueTask<LibrarySongCounts> GetSongCountsAsync(
+        string? text = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        var total = Convert.ToInt32(await ExecuteScalarAsync(
+            connection, "SELECT COUNT(*) FROM Songs;", cancellationToken));
+        var normalized = text?.Trim() ?? "";
+        if (normalized.Length == 0) return new(total, total);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM SongSearch WHERE SongSearch MATCH $match;";
+        command.Parameters.AddWithValue("$match", ToFtsQuery(normalized));
+        var matched = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
+        return new(total, matched);
+    }
+
     public async ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);

@@ -20,6 +20,9 @@ public sealed class SynchronizedLibrary(ILibraryService library, QueueStateCoord
     public ValueTask<IReadOnlyList<LibrarySong>> SearchSongsAsync(LibrarySearchQuery query,
         CancellationToken cancellationToken = default) => library.SearchSongsAsync(query, cancellationToken);
 
+    public ValueTask<LibrarySongCounts> GetSongCountsAsync(string? text = null,
+        CancellationToken cancellationToken = default) => library.GetSongCountsAsync(text, cancellationToken);
+
     public ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default) =>
         library.GetSongAsync(songId, cancellationToken);
 

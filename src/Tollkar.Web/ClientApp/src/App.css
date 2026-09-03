@@ -179,6 +179,14 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
   padding: clamp(24px, 5vw, 40px);
 }
 
+.admin-catalog-panel { max-width: none; }
+.admin-catalog-panel > input { background: var(--background); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font: inherit; margin: 8px 0 16px; padding: 12px; width: min(100%, 580px); }
+.admin-song-table-wrap { overflow-x: auto; }
+.admin-song-table { border-collapse: collapse; min-width: 720px; width: 100%; }
+.admin-song-table th, .admin-song-table td { border-bottom: 1px solid var(--border); padding: 12px 8px; text-align: left; }
+.admin-song-table th { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; }
+.admin-song-table td:last-child, .admin-song-table th:last-child { text-align: right; }
+
 .admin-panel h2 { margin-bottom: 24px; }
 .admin-notice { color: #8de8bd; overflow-wrap: anywhere; }
 

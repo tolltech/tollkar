@@ -47,6 +47,11 @@ internal sealed class LibraryService(
         return _repository.SearchSongsAsync(validatedQuery, cancellationToken);
     }
 
+    public ValueTask<LibrarySongCounts> GetSongCountsAsync(
+        string? text = null,
+        CancellationToken cancellationToken = default) =>
+        _repository.GetSongCountsAsync(text, cancellationToken);
+
     public ValueTask<Song?> GetSongAsync(
         Guid songId,
         CancellationToken cancellationToken = default)

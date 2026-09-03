@@ -158,6 +158,7 @@ public sealed class PlayerServiceTests
         public ValueTask<LibraryRootSummary> AddRootAsync(string path, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<IReadOnlyList<LibraryRootSummary>> GetRootsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<IReadOnlyList<LibrarySong>> SearchSongsAsync(LibrarySearchQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<LibrarySongCounts> GetSongCountsAsync(string? text = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask<Song?> GetSongAsync(Guid songId, CancellationToken cancellationToken = default) => ValueTask.FromResult(songId == song.Id ? song : null);
         public ValueTask IncrementPlayCountAsync(Guid songId, CancellationToken cancellationToken = default)
         {

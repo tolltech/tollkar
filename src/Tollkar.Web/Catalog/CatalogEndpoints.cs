@@ -1,9 +1,13 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 using Tollkar.Application.Library;
 using Tollkar.Application.Library.Models;
 using Tollkar.Application.Queue;
+using Tollkar.Core.Formats.Kfn;
+using Tollkar.Core.Formats.Video;
 using Tollkar.Web.Authentication;
 using Tollkar.Web.Logging;
+using Tollkar.Web.Media;
 using Tollkar.Web.Realtime;
 
 namespace Tollkar.Web.Catalog;
@@ -19,6 +23,23 @@ public static class CatalogEndpoints
                 return Invalid("Limit", "Лимит должен быть от 1 до 500.");
             return Results.Ok(await library.SearchSongsAsync(new(text, limit ?? 100), cancellationToken));
         }).RequireAuthorization();
+
+        app.MapGet("/api/admin/songs", async (string? text, int? limit,
+            ILibraryService library, CancellationToken cancellationToken) =>
+        {
+            if (limit is < 1 or > LibrarySearchQuery.MaximumLimit)
+                return Invalid("Limit", "Лимит должен быть от 1 до 500.");
+
+            var query = new LibrarySearchQuery(text, limit ?? LibrarySearchQuery.MaximumLimit);
+            var counts = await library.GetSongCountsAsync(text, cancellationToken);
+            var songs = await library.SearchSongsAsync(query, cancellationToken);
+            return Results.Ok(new AdminSongCatalogResponse(songs, counts.TotalCount, counts.MatchedCount));
+        }).RequireAuthorization(AdministratorAccount.PolicyName);
+
+        app.MapDelete("/api/admin/songs/{songId:guid}", DeleteSongAsync)
+            .LogUserAction()
+            .RequireAuthorization(AdministratorAccount.PolicyName)
+            .AddEndpointFilter<ValidateAuthRequest>();
 
         var queue = app.MapGroup("/api/queue").RequireAuthorization();
         queue.MapGet("/", async (IPlaybackQueueService service, CancellationToken cancellationToken) =>
@@ -86,4 +107,39 @@ public static class CatalogEndpoints
 
     public sealed record AddSong(Guid SongId);
     public sealed record MoveSong(int Offset);
+
+    private static async Task<IResult> DeleteSongAsync(Guid songId,
+        ILibraryService library,
+        IHostEnvironment environment,
+        IOptions<LibrarySyncOptions> options,
+        CancellationToken cancellationToken)
+    {
+        var song = songId == Guid.Empty ? null : await library.GetSongAsync(songId, cancellationToken);
+        if (song is null) return Results.NotFound();
+
+        var extension = song.Source.ProviderId switch
+        {
+            KfnSongFormatProvider.ProviderId => KfnSongFormatProvider.Extension,
+            VideoSongFormatProvider.ProviderId => VideoSongFormatProvider.Extension,
+            _ => null
+        };
+        var root = Path.GetFullPath(options.Value.SongsPath, environment.ContentRootPath);
+        var path = extension is null ? null : SongMediaFile.Locate(root, song.Source.FilePath, extension);
+        if (path is null) return Results.NotFound();
+
+        try
+        {
+            File.Delete(path);
+            return Results.NoContent();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return Results.Problem("Не удалось удалить файл песни.", statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    public sealed record AdminSongCatalogResponse(
+        IReadOnlyList<LibrarySong> Items,
+        int TotalCount,
+        int MatchedCount);
 }
