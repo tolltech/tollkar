@@ -19,8 +19,8 @@
 .karaoke-visualizer canvas, .karaoke-visualizer-fallback { display: block; height: 100%; width: 100%; }
 /* The fallback deliberately has no animation: old TV browsers still get a styled stage at zero CPU cost. */
 .karaoke-visualizer-fallback { background:
-  repeating-linear-gradient(90deg, transparent 0 3.5%, rgba(126, 207, 92, 0.38) 3.5% 5%, transparent 5% 8%),
-  linear-gradient(135deg, #061828, #07100d 55%, #150808); opacity: 0.85; }
+  repeating-linear-gradient(90deg, transparent 0 3.5%, rgba(137, 88, 255, 0.22) 3.5% 5%, transparent 5% 8%),
+  linear-gradient(135deg, #0e0a20, #170d2c 55%, #240f34); opacity: 0.85; }
 /* The backdrop is positioned, so everything drawn over it has to be positioned too: static
    siblings would paint underneath it and stop taking clicks. */
 .web-player-karaoke > .player-controls,

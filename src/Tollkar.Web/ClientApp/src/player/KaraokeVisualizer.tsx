@@ -114,9 +114,9 @@ export function KaraokeVisualizer({ enabled, media, prepare }: KaraokeVisualizer
       const { width, height } = canvasElement.getBoundingClientRect()
       canvasContext.clearRect(0, 0, width, height)
       const background = canvasContext.createLinearGradient(0, 0, width, height)
-      background.addColorStop(0, '#061828')
-      background.addColorStop(0.55, '#07100d')
-      background.addColorStop(1, '#150808')
+      background.addColorStop(0, '#0e0a20')
+      background.addColorStop(0.55, '#170d2c')
+      background.addColorStop(1, '#240f34')
       canvasContext.fillStyle = background
       canvasContext.fillRect(0, 0, width, height)
 
@@ -129,11 +129,11 @@ export function KaraokeVisualizer({ enabled, media, prepare }: KaraokeVisualizer
         const left = index * (barWidth + gap)
         const top = height - barHeight - height * 0.1
         const color = canvasContext.createLinearGradient(left, top, left, top + barHeight)
-        color.addColorStop(0, '#f6d365')
-        color.addColorStop(0.4, '#8fd14f')
-        color.addColorStop(1, '#2f8c58')
-        canvasContext.shadowBlur = 12
-        canvasContext.shadowColor = '#80ca62'
+        color.addColorStop(0, '#4a2a87')
+        color.addColorStop(0.4, '#33205e')
+        color.addColorStop(1, '#1c102e')
+        canvasContext.shadowBlur = 4
+        canvasContext.shadowColor = 'rgba(137, 88, 255, 0.22)'
         canvasContext.fillStyle = color
         canvasContext.fillRect(left, top, barWidth, barHeight)
       }
