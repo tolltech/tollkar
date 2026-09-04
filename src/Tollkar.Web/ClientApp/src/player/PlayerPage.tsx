@@ -9,9 +9,21 @@ import { KaraokeVisualizer } from './KaraokeVisualizer'
 import { useKaraokeScript } from './karaoke'
 import { formatTime, playbackPosition } from './timeline'
 import { synchronizeBackground, synchronizeMedia } from './media'
+import {
+  applyVolumeSettings,
+  changeVolumeSettings,
+  defaultVolumeSettings,
+  isVolumeMuted,
+  parseVolumeSettings,
+  toggleVolumeMute,
+  type VolumeSettings,
+} from './volume'
 import './player.css'
 
-type PlayerIconName = 'fullscreen' | 'next' | 'pause' | 'play' | 'volume'
+const volumeStorageKey = 'tollkar.player.volume'
+const autoplayBlockedMessage = 'Браузер заблокировал воспроизведение. Нажмите кнопку звука, чтобы повторить попытку.'
+
+type PlayerIconName = 'fullscreen' | 'next' | 'pause' | 'play' | 'volume' | 'volumeMuted'
 
 function PlayerIcon({ name }: { name: PlayerIconName }) {
   const paths = {
@@ -20,6 +32,7 @@ function PlayerIcon({ name }: { name: PlayerIconName }) {
     pause: <><path d="M7 5v14" /><path d="M17 5v14" /></>,
     play: <path d="m6 4 13 8-13 8V4Z" fill="currentColor" stroke="none" />,
     volume: <><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="currentColor" stroke="none" /><path d="M17 9a4 4 0 0 1 0 6" /><path d="M19.5 6.5a8 8 0 0 1 0 11" /></>,
+    volumeMuted: <><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="currentColor" stroke="none" /><path d="m17 10 4 4" /><path d="m21 10-4 4" /></>,
   }
 
   return <svg className="player-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -41,6 +54,9 @@ export function PlayerPage() {
   const busy = useRef(false)
   const [pending, setPending] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(false)
+  const [volumeSettings, setVolumeSettings] = useState<VolumeSettings>(() => {
+    try { return parseVolumeSettings(localStorage.getItem(volumeStorageKey)) } catch { return defaultVolumeSettings }
+  })
   const [blocked, setBlocked] = useState(false)
   const [error, setError] = useState('')
   const [duration, setDuration] = useState(0)
@@ -54,6 +70,12 @@ export function PlayerPage() {
     const media = video.current
     return () => media?.pause()
   }, [])
+
+  useEffect(() => {
+    const media = video.current
+    if (media) applyVolumeSettings(media, soundEnabled, volumeSettings)
+    try { localStorage.setItem(volumeStorageKey, JSON.stringify(volumeSettings)) } catch {}
+  }, [soundEnabled, volumeSettings])
 
   // Keep one media element across songs: browser audio permission belongs to the element.
   useEffect(() => {
@@ -103,9 +125,9 @@ export function PlayerPage() {
 
   function activateSound() {
     const media = video.current
-    if (!media || activated.current) return
+    if (!media || (activated.current && !blocked)) return
     activated.current = true
-    media.muted = false
+    media.muted = soundMuted
     setSoundEnabled(true)
     // Invoke play synchronously inside the user gesture, before any HTTP await.
     if (connected && playback?.isPlaying && current) {
@@ -150,13 +172,21 @@ export function PlayerPage() {
     } catch { setError('Не удалось открыть полноэкранный режим.') }
   }
 
-  function resumeLocally() {
+  function changeVolume(value: number) {
     activateSound()
-    const media = video.current
-    if (media && playback?.isPlaying && connected) {
-      void media.play().then(() => setBlocked(false)).catch(() => setBlocked(true))
-    }
+    setVolumeSettings(changeVolumeSettings(value))
   }
+
+  function toggleMute() {
+    if (blocked) {
+      activateSound()
+      return
+    }
+    activateSound()
+    setVolumeSettings(toggleVolumeMute)
+  }
+
+  const soundMuted = isVolumeMuted(volumeSettings)
 
   return <section className="page player-page" aria-labelledby="player-title">
     <h1 id="player-title">Плеер</h1>
@@ -165,7 +195,7 @@ export function PlayerPage() {
         preload="auto" tabIndex={-1} aria-hidden="true" loop={backdrop.loop}
         src={`/api/songs/${encodeURIComponent(current.songId)}/background`} />}
       <video ref={video} src={current ? `/api/songs/${encodeURIComponent(current.songId)}/media` : undefined}
-        playsInline preload="metadata" muted={!soundEnabled} aria-label={current?.title ?? 'Караоке'}
+        playsInline preload="metadata" muted={!soundEnabled || soundMuted} aria-label={current?.title ?? 'Караоке'}
         onEmptied={() => { setError(''); setDuration(0); setPosition(0) }}
         onLoadedMetadata={event => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
         onDurationChange={event => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
@@ -187,7 +217,7 @@ export function PlayerPage() {
           title={playback?.isPlaying ? 'Пауза' : 'Играть'} disabled={disabled} onClick={() => {
           if (!playback?.isPlaying) {
             activateSound()
-            void video.current?.play().then(() => setBlocked(false)).catch(() => setBlocked(true))
+            void video.current?.play().catch(() => {})
           }
           void command(playback?.isPlaying ? 'pause' : 'play')
         }}>{playback?.isPlaying ? <PlayerIcon name="pause" /> : <PlayerIcon name="play" />}</button>
@@ -195,6 +225,15 @@ export function PlayerPage() {
           disabled={disabled} onClick={() => void command('next')}><PlayerIcon name="next" /></button>
         <button type="button" className="secondary-button player-icon-button" aria-label="Полный экран" title="Полный экран"
           onClick={() => void fullscreen()}><PlayerIcon name="fullscreen" /></button>
+        <div className="player-volume">
+          <button type="button" className="secondary-button player-icon-button" aria-label="Звук"
+            title={blocked ? 'Разрешить воспроизведение' : soundMuted ? 'Включить звук' : 'Выключить звук'}
+            aria-describedby={blocked ? 'player-audio-blocked' : undefined} aria-pressed={!soundMuted} onClick={toggleMute}>
+            <PlayerIcon name={soundMuted ? 'volumeMuted' : 'volume'} />
+          </button>
+          <input type="range" min="0" max="100" step="1" value={volumeSettings.volume} aria-label="Громкость"
+            aria-valuetext={`Громкость: ${volumeSettings.volume}%`} onChange={event => changeVolume(Number(event.target.value))} />
+        </div>
         <label className="player-seek" aria-label="Позиция воспроизведения">
           <input type="range" min="0" max={duration} step="0.1" value={seek ?? Math.min(position, duration)}
             disabled={disabled || duration === 0}
@@ -210,11 +249,7 @@ export function PlayerPage() {
         </label>
         <span className="player-time">{formatTime(seek ?? position)} / {formatTime(duration)}</span>
       </div>
-      {(!soundEnabled || blocked) && current && <button className="primary-button player-activation"
-        type="button" aria-label={blocked ? 'Разрешить воспроизведение' : 'Включить звук'}
-        title={blocked ? 'Разрешить воспроизведение' : 'Включить звук'} disabled={!connected} onClick={resumeLocally}>
-        <PlayerIcon name={blocked ? 'play' : 'volume'} />
-      </button>}
+      {blocked && <p id="player-audio-blocked" className="player-audio-status" role="status">{autoplayBlockedMessage}</p>}
       {error && <p className="auth-error player-error" role="alert">{error}</p>}
     </div>
     <QueueState />
