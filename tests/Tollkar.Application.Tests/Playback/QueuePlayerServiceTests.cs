@@ -135,7 +135,8 @@ public sealed class QueuePlayerServiceTests
         $"Song {position}",
         "Artist",
         SongCapabilities.Audio | SongCapabilities.Video,
-        position);
+        position,
+        "alice");
 
     private sealed class StubQueue(IEnumerable<PlaybackQueueItem> items) : IPlaybackQueueService
     {

@@ -66,7 +66,7 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
         await connection.OpenAsync();
         await using var versionCommand = connection.CreateCommand();
         versionCommand.CommandText = "PRAGMA user_version;";
-        Assert.Equal(5L, await versionCommand.ExecuteScalarAsync());
+        Assert.Equal(6L, await versionCommand.ExecuteScalarAsync());
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT PlayCount FROM Songs WHERE Id=$id;";
         command.Parameters.AddWithValue("$id", songId.ToString());
@@ -219,10 +219,10 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task VersionThreeQueueIsPreservedForDesktopOnly()
+    public async Task VersionThreeQueueIsPreservedAsAnIsolatedLegacyQueue()
     {
         var databasePath = Path.Combine(_directory, "version-three.db");
-        var services = TollkarInfrastructure.CreateServices(databasePath);
+        var services = TollkarInfrastructure.CreateServices(databasePath, "legacy-owner");
         await services.Library.InitializeAsync();
         var repository = new SqliteLibraryRepository(databasePath);
         var root = await repository.AddRootAsync(Path.Combine(_directory, "karaoke"));
@@ -249,12 +249,62 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
         using (var pooled = new SqliteConnection(new SqliteConnectionStringBuilder
                { DataSource = Path.GetFullPath(databasePath), ForeignKeys = true }.ToString()))
             SqliteConnection.ClearPool(pooled);
-        var reopened = TollkarInfrastructure.CreateServices(databasePath);
+        var reopened = TollkarInfrastructure.CreateServices(databasePath, "legacy-owner");
         await reopened.Library.InitializeAsync();
         await reopened.Library.InitializeAsync();
-        Assert.Equal(original, Assert.Single(await reopened.PlaybackQueue.GetItemsAsync()));
+        Assert.Empty(await reopened.PlaybackQueue.GetItemsAsync());
         Assert.Empty(await TollkarInfrastructure.CreateServices(databasePath, "alice").PlaybackQueue.GetItemsAsync());
         Assert.Empty(await TollkarInfrastructure.CreateServices(databasePath, "bob").PlaybackQueue.GetItemsAsync());
+        await using var migrated = new SqliteConnection($"Data Source={databasePath}");
+        await migrated.OpenAsync();
+        await using var legacyQueueCommand = migrated.CreateCommand();
+        legacyQueueCommand.CommandText = "SELECT Id,UserId FROM PlaybackQueue WHERE UserId='__legacy_queue__';";
+        await using var reader = await legacyQueueCommand.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(original.Id.ToString(), reader.GetString(0));
+        Assert.Equal("__legacy_queue__", reader.GetString(1));
+    }
+
+    [Fact]
+    public async Task VersionFiveLegacyQueueIsPreservedAsAnIsolatedLegacyQueue()
+    {
+        var databasePath = Path.Combine(_directory, "version-five.db");
+        var services = TollkarInfrastructure.CreateServices(databasePath, "alice");
+        await services.Library.InitializeAsync();
+        var repository = new SqliteLibraryRepository(databasePath);
+        var root = await repository.AddRootAsync(Path.Combine(_directory, "karaoke"));
+        var songId = await repository.UpsertSongAsync(root.Id,
+            new FileCandidate(Path.Combine(_directory, "song.mp4"), 1, DateTimeOffset.UnixEpoch),
+            "video", 1, new SongMetadata("Song", "Artist", null, SongCapabilities.Video));
+        await services.PlaybackQueue.AddAsync(songId);
+        var legacyItem = Assert.Single(await services.PlaybackQueue.GetItemsAsync());
+        var bobServices = TollkarInfrastructure.CreateServices(databasePath, "bob");
+        await bobServices.PlaybackQueue.AddAsync(songId);
+        var bobItem = Assert.Single(await bobServices.PlaybackQueue.GetItemsAsync());
+        await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE PlaybackQueue SET UserId='local-desktop' WHERE Id=$id; PRAGMA user_version = 5;";
+            command.Parameters.AddWithValue("$id", legacyItem.Id.ToString());
+            await command.ExecuteNonQueryAsync();
+        }
+
+        using (var pooled = new SqliteConnection(new SqliteConnectionStringBuilder
+               { DataSource = Path.GetFullPath(databasePath), ForeignKeys = true }.ToString()))
+            SqliteConnection.ClearPool(pooled);
+        await new SqliteLibraryRepository(databasePath).InitializeAsync();
+
+        Assert.Empty(await TollkarInfrastructure.CreateServices(databasePath, "alice").PlaybackQueue.GetItemsAsync());
+        Assert.Equal([bobItem], await TollkarInfrastructure.CreateServices(databasePath, "bob").PlaybackQueue.GetItemsAsync());
+        await using var migrated = new SqliteConnection($"Data Source={databasePath}");
+        await migrated.OpenAsync();
+        await using var legacyQueueCommand = migrated.CreateCommand();
+        legacyQueueCommand.CommandText = "SELECT Id,UserId FROM PlaybackQueue WHERE UserId='__legacy_queue__';";
+        await using var reader = await legacyQueueCommand.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(legacyItem.Id.ToString(), reader.GetString(0));
+        Assert.Equal("__legacy_queue__", reader.GetString(1));
     }
 
     private static ValueTask<Guid> IndexSongAsync(

@@ -21,7 +21,7 @@ public sealed class TollkarInfrastructureTests : IDisposable
     public async Task PlaybackQueueCanInitializeBeforeLibraryIsUsed()
     {
         var services = TollkarInfrastructure.CreateServices(
-            Path.Combine(_directory, "queue-first.db"));
+            Path.Combine(_directory, "queue-first.db"), "alice");
 
         await services.PlaybackQueue.InitializeAsync();
 
@@ -36,7 +36,7 @@ public sealed class TollkarInfrastructureTests : IDisposable
         Directory.CreateDirectory(mediaPath);
         await File.WriteAllBytesAsync(Path.Combine(mediaPath, "Artist - First.mp4"), [1]);
         await File.WriteAllBytesAsync(Path.Combine(mediaPath, "Artist - Second.mp4"), [2]);
-        var services = TollkarInfrastructure.CreateServices(databasePath);
+        var services = TollkarInfrastructure.CreateServices(databasePath, "alice");
         await services.Library.InitializeAsync();
         var root = await services.Library.AddRootAsync(mediaPath);
         await foreach (var _ in services.Library.RefreshRootAsync(root.Id)) { }
@@ -48,7 +48,7 @@ public sealed class TollkarInfrastructureTests : IDisposable
         await services.PlaybackQueue.MoveByAsync(original[1].Id, -1);
         await services.PlaybackQueue.MoveByAsync(original[1].Id, -1);
 
-        var reopened = TollkarInfrastructure.CreateServices(databasePath);
+        var reopened = TollkarInfrastructure.CreateServices(databasePath, "alice");
         await reopened.Library.InitializeAsync();
         var persisted = await reopened.PlaybackQueue.GetItemsAsync();
         Assert.Equal([original[1].SongId, original[0].SongId], persisted.Select(item => item.SongId));

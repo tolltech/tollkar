@@ -12,11 +12,19 @@ namespace Tollkar.Infrastructure;
 public static class TollkarInfrastructure
 {
     public static ILibraryService CreateLibraryService(string databasePath)
-        => CreateServices(databasePath).Library;
-
-    public static TollkarServices CreateServices(string databasePath) => CreateServices(databasePath, "local-desktop");
+        => CreateLibraryServiceCore(databasePath);
 
     public static TollkarServices CreateServices(string databasePath, string userId)
+    {
+        var library = CreateLibraryServiceCore(databasePath);
+        var playbackQueue = new PlaybackQueueService(
+            new SqlitePlaybackQueueRepository(databasePath),
+            userId,
+            library.InitializeAsync);
+        return new(library, playbackQueue);
+    }
+
+    private static ILibraryService CreateLibraryServiceCore(string databasePath)
     {
         if (string.IsNullOrWhiteSpace(databasePath))
         {
@@ -27,12 +35,7 @@ public static class TollkarInfrastructure
         var providers = new SongFormatProviderRegistry(
             [new VideoSongFormatProvider(), new KfnSongFormatProvider()]);
         var scanner = new BackgroundLibraryScanner(repository, providers);
-        var library = new LibraryService(repository, scanner);
-        var playbackQueue = new PlaybackQueueService(
-            new SqlitePlaybackQueueRepository(databasePath),
-            userId,
-            repository.InitializeAsync);
-        return new(library, playbackQueue);
+        return new LibraryService(repository, scanner);
     }
 
     public static IPlayerService CreatePlayerService(

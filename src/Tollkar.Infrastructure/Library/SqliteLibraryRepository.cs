@@ -7,7 +7,8 @@ namespace Tollkar.Infrastructure.Library;
 
 internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRepository
 {
-    private const int SchemaVersion = 5;
+    private const int SchemaVersion = 6;
+    private const string LegacyQueueUserId = "__legacy_queue__";
     private const string SongColumns = "s.Id,s.Title,s.Artist,s.DurationTicks,s.Capabilities,s.PlayCount,r.Path,f.Path";
     private const string SongJoins = "JOIN Files f ON f.SongId=s.Id JOIN LibraryRoots r ON r.Id=s.RootId";
     private const string SongFolderSort = "CASE WHEN instr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),'/') > 0 THEN substr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),1,instr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),'/')-1) END";
@@ -108,9 +109,8 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
             await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
             await using var command = connection.CreateCommand();
             command.Transaction = (SqliteTransaction)transaction;
-            // Existing entries belong only to the desktop, never to a newly registered web user.
             command.CommandText = """
-                ALTER TABLE PlaybackQueue ADD COLUMN UserId TEXT NOT NULL DEFAULT 'local-desktop';
+                ALTER TABLE PlaybackQueue ADD COLUMN UserId TEXT NOT NULL DEFAULT '__legacy_queue__';
                 DROP INDEX IX_PlaybackQueue_Position;
                 CREATE INDEX IX_PlaybackQueue_UserId_Position ON PlaybackQueue(UserId, Position);
                 PRAGMA user_version = 4;
@@ -126,6 +126,18 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
             await using var command = connection.CreateCommand();
             command.Transaction = (SqliteTransaction)transaction;
             command.CommandText = "ALTER TABLE Songs ADD COLUMN PlayCount INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 5;";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            version = 5;
+        }
+
+        if (version == 5)
+        {
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqliteTransaction)transaction;
+            command.CommandText = "UPDATE PlaybackQueue SET UserId=$legacyUserId WHERE UserId='local-desktop'; PRAGMA user_version = 6;";
+            command.Parameters.AddWithValue("$legacyUserId", LegacyQueueUserId);
             await command.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }

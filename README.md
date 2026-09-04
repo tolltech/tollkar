@@ -1,7 +1,7 @@
 # Tollkar
 
-Tollkar is a local karaoke application. The repository contains the existing Avalonia desktop app and an
-ASP.NET Core + React web application under `src/Tollkar.Web`.
+Tollkar is a local web karaoke application. The repository contains an ASP.NET Core + React web
+application under `src/Tollkar.Web`.
 
 ## Run the web application
 
@@ -39,7 +39,7 @@ The web server writes application and ASP.NET Core events through Vostok.Logging
 ## Web authentication
 
 Identity uses its own SQLite database (`ConnectionStrings:WebDatabase`, default `tollkar-web.db`
-relative to the web process working directory), never the desktop/library database. Override it with
+relative to the web process working directory), separate from the library database. Override it with
 `ConnectionStrings__WebDatabase='Data Source=/absolute/path/tollkar-web.db'` for both EF and the server.
 Apply migrations explicitly during deployment; the server does not migrate an existing database on startup.
 Use HTTPS in production: authentication and antiforgery cookies are Secure outside Development.
@@ -75,14 +75,14 @@ they are also used to validate guest links.
 ## Library and personal queues
 
 Set `Library__DatabasePath` to the shared catalog SQLite file (default `tollkar-library.db`, relative to
-the process working directory). It must be separate from the Identity database. To use an existing
-desktop catalog, point this setting at its library file.
+the process working directory). It must be separate from the Identity database. To retain an existing
+catalog, point this setting at its library file.
 
 For a separate web catalog, manually put songs in `src/Tollkar.Web/songs` during development,
 or `songs` under the deployed application's content root. The directory is created automatically.
 A hosted background service scans it at startup, then waits 30 seconds after each completed scan
 before scanning again. Subdirectories are included; added and changed files are indexed, unchanged
-files keep their IDs, and deleted files are removed from the catalog using the same scanner as desktop.
+files keep their IDs, and deleted files are removed from the catalog by the same scanner.
 Only this directory is refreshed automatically; any other catalog roots remain untouched.
 Scan failures are logged and retried on the next pass without stopping the web server.
 
@@ -94,8 +94,8 @@ Supported files are `.mp4` and `.kfn`. Use `Artist - Title.mp4` for video metada
 carries its own title and artist, falling back to the file name and the containing folder, so filing
 them as `Artist/Title.kfn` is enough; see [the KFN notes](docs/kfn-format.md).
 To avoid indexing a partially copied file, copy it with a temporary extension and rename it to the
-final one when the transfer completes. No desktop application or server restart is needed for new
-songs. The desktop application indexes KFN containers but cannot play them; only the web player can.
+final one when the transfer completes. No server restart is needed for new songs. The web player
+supports both MP4 and KFN containers.
 The queue page supports song search, adding, removing, moving up/down and selecting a current song.
 Selection and playback are synchronized across devices.
 
@@ -109,9 +109,9 @@ separately during deployment and grant the server read/write access to it and th
 The Identity database remains separate; the web API does not expose filesystem paths or indexing
 operations — search results carry only the first folder name as a label, never a path.
 
-The library's existing versioned SQL initializer upgrades schema 3 to 4 transactionally at startup.
-Existing queue entries are preserved with owner `local-desktop`, inaccessible to web users.
-Use the updated desktop application with schema 4; older versions reject this newer schema.
+The library's versioned SQL initializer upgrades older schemas transactionally at startup.
+Historical queues without a web owner are preserved under a reserved owner and remain inaccessible
+to web users.
 Identity's EF schema is unchanged. Back up the catalog before upgrading; to roll back, restore the
 backup and use the previous application version (personal queues created after the backup are lost).
 
@@ -136,7 +136,7 @@ Mutations require `X-CSRF-TOKEN` obtained as described above and return 204. Mis
 invalid input returns 400. Deleting/moving missing or foreign queue entries is a no-op returning 204,
 so the API does not reveal whether another user's entry exists. Ownership always comes from the
 authenticated session, never query parameters or JSON. Tests use two separate cookie sessions to
-verify read/write isolation, ordering, CSRF protection, and preservation of legacy desktop queues.
+verify read/write isolation, ordering, CSRF protection, and preservation of isolated legacy queues.
 
 ## Validate changes
 

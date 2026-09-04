@@ -41,7 +41,6 @@ enumeration finishes or is disposed; intermediate scan results are not promised 
 
 Run a single web server process for this stage. Multiple replicas or external writers to personal
 queues require shared durable versions and cross-process notifications before they are supported.
-The desktop application keeps its separate `local-desktop` queue. No database migration is required.
 Use a reverse proxy with WebSocket support; the Vite `/api` development proxy enables WebSockets.
 
 ## Validation

@@ -9,4 +9,4 @@ public sealed record PlaybackQueueItem(
     string? Artist,
     SongCapabilities Capabilities,
     int Position,
-    string UserId = "local-desktop");
+    string UserId);
