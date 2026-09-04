@@ -51,7 +51,14 @@ public sealed class LibrarySyncService(
             logger.Debug("Song synchronization completed: {Indexed} indexed, {Unchanged} unchanged, {Failed} failed.",
                 progress.IndexedSongs, progress.UnchangedFiles, progress.FailedFiles);
             if (progress.FailedFiles > 0)
+            {
                 logger.Warn("Song synchronization encountered {Failed} file errors.", progress.FailedFiles);
+                if (progress.FailedFiles < 100)
+                {
+                    foreach (var path in progress.FailedFilePaths)
+                        logger.Warn("Song synchronization failed for file: {Path}.", path);
+                }
+            }
         }
     }
 }

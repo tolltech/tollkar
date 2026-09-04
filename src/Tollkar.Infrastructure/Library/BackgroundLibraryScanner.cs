@@ -14,6 +14,8 @@ internal sealed class BackgroundLibraryScanner(
     int? workerCount = null) : ILibraryScanner
 {
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ScanLocks = new();
+    private const int FailedPathLogLimit = 100;
+    private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<string, byte>> _failedFiles = new();
 
     private readonly ILibraryRepository _repository =
         repository ?? throw new ArgumentNullException(nameof(repository));
@@ -191,6 +193,8 @@ internal sealed class BackgroundLibraryScanner(
             var unchanged = 0;
             var ignored = 0;
             var failed = 0;
+            var failedFilePaths = new List<string>();
+            var seenFailedFilePaths = new HashSet<string>(StringComparer.Ordinal);
             await foreach (var result in results.Reader.ReadAllAsync(cancellationToken))
             {
                 if (result.Kind == ScanResultKind.Indexed)
@@ -213,6 +217,7 @@ internal sealed class BackgroundLibraryScanner(
                     catch (Exception exception) when (exception is not OperationCanceledException)
                     {
                         enumerationComplete = false;
+                        AddFailedPath(failedFilePaths, result.Item!.File.Path);
                         failed++;
                     }
                 }
@@ -220,6 +225,15 @@ internal sealed class BackgroundLibraryScanner(
                 {
                     await _repository.MarkFileSeenAsync(
                         result.Item!.File.Path,
+                        scanId,
+                        cancellationToken);
+                    unchanged++;
+                }
+                else if (result.Kind == ScanResultKind.SkippedFailure)
+                {
+                    seenFailedFilePaths.Add(result.Item!.File.Path);
+                    await _repository.MarkFileSeenAsync(
+                        result.Item.File.Path,
                         scanId,
                         cancellationToken);
                     unchanged++;
@@ -240,6 +254,13 @@ internal sealed class BackgroundLibraryScanner(
                         {
                             enumerationComplete = false;
                         }
+
+                        AddFailedPath(failedFilePaths, result.Item.File.Path);
+                        if (result.Kind == ScanResultKind.FileFailure)
+                        {
+                            RememberFailedFile(rootId, result.Item.File.Path);
+                            seenFailedFilePaths.Add(result.Item.File.Path);
+                        }
                     }
                     else if (result.Path is not null)
                     {
@@ -247,13 +268,14 @@ internal sealed class BackgroundLibraryScanner(
                             result.Path,
                             scanId,
                             cancellationToken);
+                        AddFailedPath(failedFilePaths, result.Path);
                     }
 
                     failed++;
                 }
 
                 progress.TryWrite(CreateProgress(
-                    rootId, discovered, indexed, unchanged, ignored, failed, false));
+                    rootId, discovered, indexed, unchanged, ignored, failed, false, failedFilePaths));
             }
 
             await completeResults;
@@ -263,9 +285,10 @@ internal sealed class BackgroundLibraryScanner(
                     rootId,
                     scanId,
                     cancellationToken);
+                ForgetFailedFilesNotSeen(rootId, seenFailedFilePaths);
             }
             progress.TryWrite(CreateProgress(
-                rootId, discovered, indexed, unchanged, ignored, failed, true));
+                rootId, discovered, indexed, unchanged, ignored, failed, true, failedFilePaths));
             progress.TryComplete();
         }
         catch (Exception exception)
@@ -282,19 +305,37 @@ internal sealed class BackgroundLibraryScanner(
     {
         await foreach (var item in work.ReadAllAsync(cancellationToken))
         {
+            if (IsKnownFailure(rootId, item.File.Path))
+            {
+                await results.WriteAsync(
+                    ScanResult.ForSkippedFailure(item),
+                    cancellationToken);
+                continue;
+            }
+
+            IndexedFileRecord? existing;
             try
             {
-                var existing = await _repository.GetIndexedFileAsync(
+                existing = await _repository.GetIndexedFileAsync(
                     item.File.Path,
                     cancellationToken);
-                if (IsUnchanged(existing, item))
-                {
-                    await results.WriteAsync(
-                        ScanResult.ForUnchanged(item),
-                        cancellationToken);
-                    continue;
-                }
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                await results.WriteAsync(ScanResult.ForFailure(item), cancellationToken);
+                continue;
+            }
 
+            if (IsUnchanged(existing, item))
+            {
+                await results.WriteAsync(
+                    ScanResult.ForUnchanged(item),
+                    cancellationToken);
+                continue;
+            }
+
+            try
+            {
                 var metadata = await item.Provider.ReadMetadataAsync(
                     item.File,
                     cancellationToken);
@@ -305,7 +346,7 @@ internal sealed class BackgroundLibraryScanner(
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 await results.WriteAsync(
-                    ScanResult.ForFailure(item),
+                    ScanResult.ForFileFailure(item),
                     cancellationToken);
             }
         }
@@ -318,6 +359,26 @@ internal sealed class BackgroundLibraryScanner(
         existing.ProviderId == item.Provider.Id &&
         existing.ProviderVersion == item.Provider.Version;
 
+    private bool IsKnownFailure(Guid rootId, string path) =>
+        _failedFiles.TryGetValue(rootId, out var files) && files.ContainsKey(path);
+
+    private void RememberFailedFile(Guid rootId, string path) =>
+        _failedFiles.GetOrAdd(rootId, _ => new()).TryAdd(path, 0);
+
+    private void ForgetFailedFilesNotSeen(Guid rootId, IReadOnlySet<string> seenPaths)
+    {
+        if (!_failedFiles.TryGetValue(rootId, out var files)) return;
+        foreach (var path in files.Keys)
+        {
+            if (!seenPaths.Contains(path)) files.TryRemove(path, out _);
+        }
+    }
+
+    private static void AddFailedPath(List<string> paths, string path)
+    {
+        if (paths.Count < FailedPathLogLimit) paths.Add(path);
+    }
+
     private static LibraryIndexProgress CreateProgress(
         Guid rootId,
         int discovered,
@@ -325,18 +386,22 @@ internal sealed class BackgroundLibraryScanner(
         int unchanged,
         int ignored,
         int failed,
-        bool completed) =>
+        bool completed,
+        IReadOnlyList<string> failedFilePaths) =>
         new(rootId, discovered, indexed, failed, completed)
         {
             UnchangedFiles = unchanged,
-            IgnoredFiles = ignored
+            IgnoredFiles = ignored,
+            FailedFilePaths = completed && failed < FailedPathLogLimit
+                ? failedFilePaths.ToArray()
+                : Array.Empty<string>()
         };
 
     private sealed record ScanWorkItem(
         FileCandidate File,
         ISongFormatProvider Provider);
 
-    private enum ScanResultKind { Indexed, Unchanged, Ignored, Failure }
+    private enum ScanResultKind { Indexed, Unchanged, Ignored, Failure, FileFailure, SkippedFailure }
 
     private sealed record ScanResult(
         ScanResultKind Kind,
@@ -355,8 +420,14 @@ internal sealed class BackgroundLibraryScanner(
         public static ScanResult ForUnchanged(ScanWorkItem item) =>
             new(ScanResultKind.Unchanged, item);
 
+        public static ScanResult ForFileFailure(ScanWorkItem item) =>
+            new(ScanResultKind.FileFailure, item);
+
         public static ScanResult ForFailure(ScanWorkItem item) =>
             new(ScanResultKind.Failure, item);
+
+        public static ScanResult ForSkippedFailure(ScanWorkItem item) =>
+            new(ScanResultKind.SkippedFailure, item);
 
         public static ScanResult ForFailure(string path) =>
             new(ScanResultKind.Failure, Path: path);

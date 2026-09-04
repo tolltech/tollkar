@@ -108,6 +108,54 @@ public sealed class BackgroundLibraryScannerTests : IDisposable
         Assert.Single(await repository.SearchSongsAsync(new LibrarySearchQuery("song")));
     }
 
+    [Fact]
+    public async Task MetadataFailuresAreSkippedUntilScannerRestarts()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "bad.mp4");
+        File.WriteAllBytes(path, [1]);
+        var repository = new SqliteLibraryRepository(Path.Combine(_directory, "library.db"));
+        await repository.InitializeAsync();
+        var root = await repository.AddRootAsync(_directory);
+        var provider = new FailingProvider();
+        var scanner = new BackgroundLibraryScanner(
+            repository,
+            new SongFormatProviderRegistry([provider]));
+
+        var first = await CollectAsync(scanner.RefreshAsync(root.Id));
+        var second = await CollectAsync(scanner.RefreshAsync(root.Id));
+        var afterRestart = await CollectAsync(new BackgroundLibraryScanner(
+            repository,
+            new SongFormatProviderRegistry([provider])).RefreshAsync(root.Id));
+
+        Assert.Equal([path], first[^1].FailedFilePaths);
+        Assert.Equal(1, first[^1].FailedFiles);
+        Assert.Equal(0, second[^1].FailedFiles);
+        Assert.Equal(1, second[^1].UnchangedFiles);
+        Assert.Empty(second[^1].FailedFilePaths);
+        Assert.Equal(1, afterRestart[^1].FailedFiles);
+        Assert.Equal(2, provider.ReadAttempts);
+    }
+
+    [Fact]
+    public async Task DoesNotPublishFailurePathsWhenOneHundredFilesFail()
+    {
+        Directory.CreateDirectory(_directory);
+        for (var index = 0; index < 100; index++)
+            File.WriteAllBytes(Path.Combine(_directory, $"bad-{index}.mp4"), [1]);
+        var repository = new SqliteLibraryRepository(Path.Combine(_directory, "library.db"));
+        await repository.InitializeAsync();
+        var root = await repository.AddRootAsync(_directory);
+        var scanner = new BackgroundLibraryScanner(
+            repository,
+            new SongFormatProviderRegistry([new FailingProvider(failAll: true)]));
+
+        var progress = await CollectAsync(scanner.RefreshAsync(root.Id));
+
+        Assert.Equal(100, progress[^1].FailedFiles);
+        Assert.Empty(progress[^1].FailedFilePaths);
+    }
+
     private static async Task<List<LibraryIndexProgress>> CollectAsync(
         IAsyncEnumerable<LibraryIndexProgress> source)
     {
@@ -123,6 +171,8 @@ public sealed class BackgroundLibraryScannerTests : IDisposable
 
     private sealed class FailingProvider(bool failAll = false) : ISongFormatProvider
     {
+        public int ReadAttempts { get; private set; }
+
         public string Id => "test";
         public int Version => 1;
         public int Priority => 0;
@@ -130,14 +180,17 @@ public sealed class BackgroundLibraryScannerTests : IDisposable
 
         public ValueTask<SongMetadata> ReadMetadataAsync(
             FileCandidate file,
-            CancellationToken cancellationToken = default) =>
-            failAll || file.Path.EndsWith("bad.mp4", StringComparison.Ordinal)
+            CancellationToken cancellationToken = default)
+        {
+            ReadAttempts++;
+            return failAll || file.Path.EndsWith("bad.mp4", StringComparison.Ordinal)
                 ? throw new InvalidDataException("Broken test file.")
                 : ValueTask.FromResult(new SongMetadata(
                     "Good",
                     null,
                     null,
                     SongCapabilities.Video));
+        }
     }
 
     private sealed class ConcurrencyTrackingProvider : ISongFormatProvider

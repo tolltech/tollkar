@@ -36,6 +36,10 @@ public sealed class LibrarySyncTests : IAsyncLifetime
     }
 
     [Fact]
+    public void UsesHourlySynchronizationByDefault() =>
+        Assert.Equal(TimeSpan.FromHours(1), new LibrarySyncOptions().SyncInterval);
+
+    [Fact]
     public async Task SynchronizesNestedSongsChangesAndDeletionsWithoutDuplicates()
     {
         var nested = Directory.CreateDirectory(Path.Combine(SongsPath, "Album")).FullName;

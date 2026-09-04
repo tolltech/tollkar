@@ -10,4 +10,6 @@ public sealed record LibraryIndexProgress(
     public int UnchangedFiles { get; init; }
 
     public int IgnoredFiles { get; init; }
+
+    public IReadOnlyList<string> FailedFilePaths { get; init; } = Array.Empty<string>();
 }
