@@ -11,6 +11,22 @@ import { formatTime, playbackPosition } from './timeline'
 import { synchronizeBackground, synchronizeMedia } from './media'
 import './player.css'
 
+type PlayerIconName = 'fullscreen' | 'next' | 'pause' | 'play' | 'volume'
+
+function PlayerIcon({ name }: { name: PlayerIconName }) {
+  const paths = {
+    fullscreen: <><path d="M4 9V4h5" /><path d="M15 4h5v5" /><path d="M20 15v5h-5" /><path d="M9 20H4v-5" /></>,
+    next: <><path d="m4 5 10 7-10 7V5Z" fill="currentColor" stroke="none" /><path d="M20 5v14" /></>,
+    pause: <><path d="M7 5v14" /><path d="M17 5v14" /></>,
+    play: <path d="m6 4 13 8-13 8V4Z" fill="currentColor" stroke="none" />,
+    volume: <><path d="M4 10v4h4l5 4V6l-5 4H4Z" fill="currentColor" stroke="none" /><path d="M17 9a4 4 0 0 1 0 6" /><path d="M19.5 6.5a8 8 0 0 1 0 11" /></>,
+  }
+
+  return <svg className="player-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    {paths[name]}
+  </svg>
+}
+
 export function PlayerPage() {
   const { snapshot, connected } = useOutletContext<ReturnType<typeof useQueue>>()
   const current = snapshot?.items.find(item => item.id === snapshot.currentItemId)
@@ -167,18 +183,22 @@ export function PlayerPage() {
       {karaoke && <Lyrics lines={karaoke.lines} media={video} />}
       {!current && <p className="player-empty">Выберите песню в очереди, чтобы начать.</p>}
       <div className="player-controls">
-        <button className="primary-button" disabled={disabled} onClick={() => {
+        <button type="button" className="primary-button player-icon-button" aria-label={playback?.isPlaying ? 'Пауза' : 'Играть'}
+          title={playback?.isPlaying ? 'Пауза' : 'Играть'} disabled={disabled} onClick={() => {
           if (!playback?.isPlaying) {
             activateSound()
             void video.current?.play().then(() => setBlocked(false)).catch(() => setBlocked(true))
           }
           void command(playback?.isPlaying ? 'pause' : 'play')
-        }}>{playback?.isPlaying ? 'Пауза' : 'Играть'}</button>
-        <button className="secondary-button" disabled={disabled} onClick={() => void command('next')}>Следующая</button>
-        <button className="secondary-button" onClick={() => void fullscreen()}>Полный экран</button>
-        <label className="player-seek">Позиция
+        }}>{playback?.isPlaying ? <PlayerIcon name="pause" /> : <PlayerIcon name="play" />}</button>
+        <button type="button" className="secondary-button player-icon-button" aria-label="Следующая песня" title="Следующая песня"
+          disabled={disabled} onClick={() => void command('next')}><PlayerIcon name="next" /></button>
+        <button type="button" className="secondary-button player-icon-button" aria-label="Полный экран" title="Полный экран"
+          onClick={() => void fullscreen()}><PlayerIcon name="fullscreen" /></button>
+        <label className="player-seek" aria-label="Позиция воспроизведения">
           <input type="range" min="0" max={duration} step="0.1" value={seek ?? Math.min(position, duration)}
             disabled={disabled || duration === 0}
+            aria-label="Позиция воспроизведения"
             aria-valuetext={formatTime(seek ?? position)}
             onChange={event => setSeek(Number(event.target.value))}
             onPointerUp={event => { void command('seek', Number(event.currentTarget.value)); setSeek(null) }}
@@ -191,7 +211,10 @@ export function PlayerPage() {
         <span className="player-time">{formatTime(seek ?? position)} / {formatTime(duration)}</span>
       </div>
       {(!soundEnabled || blocked) && current && <button className="primary-button player-activation"
-        disabled={!connected} onClick={resumeLocally}>{blocked ? 'Разрешить воспроизведение' : 'Включить звук'}</button>}
+        type="button" aria-label={blocked ? 'Разрешить воспроизведение' : 'Включить звук'}
+        title={blocked ? 'Разрешить воспроизведение' : 'Включить звук'} disabled={!connected} onClick={resumeLocally}>
+        <PlayerIcon name={blocked ? 'play' : 'volume'} />
+      </button>}
       {error && <p className="auth-error player-error" role="alert">{error}</p>}
     </div>
     <QueueState />
