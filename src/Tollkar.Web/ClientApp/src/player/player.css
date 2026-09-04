@@ -15,11 +15,18 @@
    optional backdrop clip with the lyrics drawn over it. */
 .web-player-karaoke > video:not(.player-backdrop) { height: 0; position: absolute; visibility: hidden; }
 .player-backdrop { aspect-ratio: auto; height: 100%; inset: 0; object-fit: cover; position: absolute; }
+.karaoke-visualizer { inset: 0; overflow: hidden; position: absolute; }
+.karaoke-visualizer canvas, .karaoke-visualizer-fallback { display: block; height: 100%; width: 100%; }
+/* The fallback deliberately has no animation: old TV browsers still get a styled stage at zero CPU cost. */
+.karaoke-visualizer-fallback { background:
+  repeating-linear-gradient(90deg, transparent 0 3.5%, rgba(126, 207, 92, 0.38) 3.5% 5%, transparent 5% 8%),
+  linear-gradient(135deg, #061828, #07100d 55%, #150808); opacity: 0.85; }
 /* The backdrop is positioned, so everything drawn over it has to be positioned too: static
    siblings would paint underneath it and stop taking clicks. */
 .web-player-karaoke > .player-controls,
 .web-player-karaoke > .player-activation,
-.web-player-karaoke > .player-error { position: relative; }
+.web-player-karaoke > .player-error,
+.web-player-karaoke > .player-lyrics { position: relative; }
 .player-lyrics { --lyric-current-size: clamp(24px, 5vw, 44px); --lyric-next-size: clamp(16px, 3vw, 26px);
   display: flex; flex-direction: column; gap: 16px; justify-content: center;
   min-height: min(52vh, 360px); padding: 24px; position: relative; text-align: center; }

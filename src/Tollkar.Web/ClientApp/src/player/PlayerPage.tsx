@@ -5,6 +5,7 @@ import { QueueState } from '../queue/QueueState'
 import { isKaraoke } from '../queue/snapshot'
 import type { useQueue } from '../queue/useQueue'
 import { Lyrics } from './Lyrics'
+import { KaraokeVisualizer } from './KaraokeVisualizer'
 import { useKaraokeScript } from './karaoke'
 import { formatTime, playbackPosition } from './timeline'
 import { synchronizeBackground, synchronizeMedia } from './media'
@@ -162,6 +163,7 @@ export function PlayerPage() {
             ? 'Фонограмма недоступна или её формат не поддерживается браузером. Можно перейти к следующей песне.'
             : 'Видео недоступно или его формат не поддерживается браузером. Можно перейти к следующей песне.')
         }} />
+      <KaraokeVisualizer enabled={Boolean(karaoke && !backdrop)} media={video} prepare={isKaraoke(current)} />
       {karaoke && <Lyrics lines={karaoke.lines} media={video} />}
       {!current && <p className="player-empty">Выберите песню в очереди, чтобы начать.</p>}
       <div className="player-controls">
