@@ -72,8 +72,6 @@ export function PlayerPage() {
   const [seek, setSeek] = useState<number | null>(null)
   const disabled = !connected || !current || !playback || pending
 
-  const advance = useEffectEvent(() => { void command('ended') })
-
   /** A browser that refuses to play with sound gets a muted player: the picture matters more. */
   function giveUpSound(reason: unknown) {
     if (!(reason instanceof DOMException) || reason.name !== 'NotAllowedError') return
@@ -169,6 +167,51 @@ export function PlayerPage() {
       document.removeEventListener('keydown', activate)
     }
   })
+
+  const advance = useEffectEvent(() => { void command('ended') })
+  const remotePlay = useEffectEvent(() => {
+    activateSound()
+    void video.current?.play().catch(() => {})
+    void command('play')
+  })
+  const remotePause = useEffectEvent(() => { void command('pause') })
+  const seekBy = useEffectEvent((offsetSeconds: number) => {
+    if (!playback || !current || !Number.isFinite(duration) || duration <= 0) return
+    const currentPosition = playbackPosition(playback, performance.now())
+    const target = Math.max(0, Math.min(duration, currentPosition + offsetSeconds))
+    void command('seek', target)
+  })
+  const remoteSeekBackward = useEffectEvent(() => { seekBy(-10) })
+  const remoteSeekForward = useEffectEvent(() => { seekBy(10) })
+  const remoteSeekTo = useEffectEvent((details: MediaSessionActionDetails) => {
+    if (!playback || details.seekTime === undefined) return
+    seekBy(details.seekTime - playbackPosition(playback, performance.now()))
+  })
+
+  // TV remotes expose playback and seek commands through Media Session rather than as keyboard events.
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    const mediaSession = navigator.mediaSession
+    try { mediaSession.setActionHandler('play', remotePlay) } catch {}
+    try { mediaSession.setActionHandler('pause', remotePause) } catch {}
+    try { mediaSession.setActionHandler('seekbackward', remoteSeekBackward) } catch {}
+    try { mediaSession.setActionHandler('seekforward', remoteSeekForward) } catch {}
+    try { mediaSession.setActionHandler('seekto', remoteSeekTo) } catch {}
+    return () => {
+      try {
+        mediaSession.setActionHandler('play', null)
+        mediaSession.setActionHandler('pause', null)
+        mediaSession.setActionHandler('seekbackward', null)
+        mediaSession.setActionHandler('seekforward', null)
+        mediaSession.setActionHandler('seekto', null)
+      } catch {}
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    navigator.mediaSession.playbackState = playback?.isPlaying ? 'playing' : playback ? 'paused' : 'none'
+  }, [playback])
 
   async function command(action: string, positionSeconds = 0) {
     if (busy.current || !connected || !playback || !current) return
