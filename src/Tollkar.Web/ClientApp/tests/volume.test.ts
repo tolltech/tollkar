@@ -4,7 +4,10 @@ import {
   applyVolumeSettings,
   changeVolumeSettings,
   defaultVolumeSettings,
+  displayVolumeSettings,
+  isSoundSilent,
   parseVolumeSettings,
+  pressVolumeButton,
   toggleVolumeMute,
 } from '../src/player/volume.ts'
 
@@ -41,4 +44,23 @@ test('volume settings respect both saved mute and browser audio activation', () 
 
   applyVolumeSettings(media, true, { muted: false, volume: 37 })
   assert.deepEqual(media, { muted: false, volume: 0.37 })
+})
+
+test('the sound button reflects a player the browser has not unblocked yet', () => {
+  assert.equal(isSoundSilent(false, { muted: false, volume: 100 }), true)
+  assert.equal(isSoundSilent(true, { muted: false, volume: 100 }), false)
+  assert.equal(isSoundSilent(true, { muted: true, volume: 100 }), true)
+  assert.equal(isSoundSilent(true, { muted: false, volume: 0 }), true)
+})
+
+test('the first press unblocks the sound instead of muting an audible player', () => {
+  assert.deepEqual(pressVolumeButton(false, { muted: false, volume: 37 }), { muted: false, volume: 37 })
+  assert.deepEqual(pressVolumeButton(false, { muted: true, volume: 37 }), { muted: false, volume: 37 })
+  assert.deepEqual(pressVolumeButton(true, { muted: false, volume: 37 }), { muted: true, volume: 37 })
+  assert.deepEqual(pressVolumeButton(true, { muted: true, volume: 37 }), { muted: false, volume: 37 })
+})
+
+test('a display starts audible and keeps a usable volume level', () => {
+  assert.deepEqual(displayVolumeSettings({ muted: true, volume: 37 }), { muted: false, volume: 37 })
+  assert.deepEqual(displayVolumeSettings({ muted: true, volume: 0 }), defaultVolumeSettings)
 })

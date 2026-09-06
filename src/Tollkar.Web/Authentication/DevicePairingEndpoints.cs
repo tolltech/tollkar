@@ -52,7 +52,8 @@ public static class DevicePairingEndpoints
             if (await users.FindByIdAsync(ownerId) is null)
                 return Results.NotFound();
 
-            await access.SignInAsync(context, new GuestAccess.GuestGrant(ownerId, access.ExpiresAt()));
+            await access.SignInAsync(context, new GuestAccess.GuestGrant(ownerId, access.ExpiresAt()),
+                GuestDevice.Display);
             return Results.Ok(new { status = "approved" });
         }).AllowAnonymous();
     }

@@ -80,7 +80,11 @@ body. Both screens print the `userCode` so the person confirming can compare the
 opens that link, checks the code and confirms or declines; guest sessions cannot confirm one, and a second
 account confirming the same code is refused with 409. The display polls `POST /api/pairing/session` with both
 codes and receives the same kind of guest session as a guest link: the owner's queue and player, no
-administration, expiring at the next calendar date on the server. Confirmation grants exactly one session and
+administration, expiring at the next calendar date on the server. That session is marked as a display
+(`isDisplay` in `GET /api/auth/me`): it opens the player instead of the queue, hides everything but the
+stage, and starts audible regardless of the volume this browser saved. Revealing the QR code also asks
+for fullscreen, the only user gesture a display makes; a browser that refuses still shows the same
+full-window player. Confirmation grants exactly one session and
 the request itself lives five minutes in process memory only, so a restart cancels pending pairings.
 Pending requests are capped per client address and overall; a display over its budget replaces its own oldest
 code and a crowded server drops the busiest client's, preferring codes nobody has confirmed yet, so a caller

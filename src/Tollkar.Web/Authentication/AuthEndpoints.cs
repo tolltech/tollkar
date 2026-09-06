@@ -24,7 +24,8 @@ public static class AuthEndpoints
                     id = context.User.FindFirstValue(ClaimTypes.NameIdentifier),
                     login = "Гость",
                     isAdmin = false,
-                    isGuest = true
+                    isGuest = true,
+                    isDisplay = context.User.HasClaim(GuestAccess.DisplayClaim, bool.TrueString)
                 });
             var user = await users.GetUserAsync(context.User);
             return user is null ? Results.Unauthorized() : Results.Ok(ToResponse(user));
@@ -93,6 +94,7 @@ public static class AuthEndpoints
         user.Id,
         login = user.UserName,
         isAdmin = AdministratorAccount.IsAdministrator(user),
-        isGuest = false
+        isGuest = false,
+        isDisplay = false
     };
 }

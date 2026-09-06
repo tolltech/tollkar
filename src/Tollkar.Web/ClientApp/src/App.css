@@ -164,7 +164,7 @@ h1 { font-size: clamp(36px, 6vw, 72px); letter-spacing: -0.06em; line-height: 0.
 .auth-form { display: grid; gap: 12px; }
 .auth-form input { background: var(--background); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font: inherit; min-width: 0; padding: 12px; width: 100%; }
 .auth-error { color: #ffacba; overflow-wrap: anywhere; }
-.user-menu { align-items: center; display: flex; gap: 16px; overflow-wrap: anywhere; }
+.user-menu { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; overflow-wrap: anywhere; }
 button { cursor: pointer; font: inherit; }
 button:disabled { cursor: wait; opacity: 0.6; }
 button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent-light); outline-offset: 3px; }
@@ -179,6 +179,17 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .device-login-code span { color: #141123; }
 .device-login-key { font-size: 18px; letter-spacing: 2px; margin-top: 16px; }
 .pair-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+
+/* A display is watched from across the room: only the player stage stays on screen, and of the queue
+   panel just the line that explains a lost connection. */
+.app-shell.is-display .app-header,
+.app-shell.is-display .player-page > h1,
+.app-shell.is-display .current-song,
+.app-shell.is-display .connection-status.is-connected { display: none; }
+.app-shell.is-display .app-content { max-width: none; padding: 0; }
+/* Only a lost connection ever shows here, so the strip never takes a click from the controls. */
+.app-shell.is-display .queue-state { bottom: 0; inset-inline: 0; margin: 0; padding: 12px 16px;
+  pointer-events: none; position: fixed; }
 
 .admin-panel {
   background: rgba(20, 17, 35, 0.84);

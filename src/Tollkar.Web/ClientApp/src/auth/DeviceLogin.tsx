@@ -35,7 +35,7 @@ export function DeviceLogin() {
         const outcome = await claimPairingSession(current!, controller.signal)
         if (controller.signal.aborted) return
         if (outcome === 'approved') {
-          navigate('/queue', { replace: true })
+          navigate('/player', { replace: true })
           return
         }
         // A code the server no longer knows is replaced instead of polled forever.
@@ -60,12 +60,19 @@ export function DeviceLogin() {
     }
   }, [navigate, visible])
 
+  // Showing the code is the only gesture a display makes, and fullscreen needs one: the document
+  // stays fullscreen through the route change to the player.
+  function enterFullscreen() {
+    if (document.fullscreenElement) return
+    void document.documentElement.requestFullscreen?.().catch(() => {})
+  }
+
   return (
     <section className="device-login" aria-labelledby="device-login-title">
       <h2 id="device-login-title">Вход с телефона</h2>
       <p>Отсканируйте код телефоном, где вы уже вошли, и подтвердите вход. Экран войдёт в вашу сессию сам.</p>
       <button type="button" className="secondary-button" aria-controls="device-login-code" aria-expanded={visible}
-        onClick={() => setVisible(value => !value)}>
+        onClick={() => { if (!visible) enterFullscreen(); setVisible(value => !value) }}>
         {visible ? 'Скрыть QR-код' : 'Показать QR-код'}
       </button>
       {visible && <>

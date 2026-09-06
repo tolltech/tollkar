@@ -1,6 +1,8 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { mutate } from '../api/request'
+import { useCurrentUser } from '../auth/currentUser'
+import { LogoutButton } from '../auth/LogoutButton'
 import { QueueState } from '../queue/QueueState'
 import { isKaraoke } from '../queue/snapshot'
 import type { useQueue } from '../queue/useQueue'
@@ -13,9 +15,11 @@ import {
   applyVolumeSettings,
   changeVolumeSettings,
   defaultVolumeSettings,
+  displayVolumeSettings,
+  isSoundSilent,
   isVolumeMuted,
   parseVolumeSettings,
-  toggleVolumeMute,
+  pressVolumeButton,
   type VolumeSettings,
 } from './volume'
 import './player.css'
@@ -41,6 +45,7 @@ function PlayerIcon({ name }: { name: PlayerIconName }) {
 }
 
 export function PlayerPage() {
+  const { isDisplay } = useCurrentUser()
   const { snapshot, connected } = useOutletContext<ReturnType<typeof useQueue>>()
   const current = snapshot?.items.find(item => item.id === snapshot.currentItemId)
   const currentId = current?.id
@@ -51,11 +56,14 @@ export function PlayerPage() {
   const background = useRef<HTMLVideoElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const activated = useRef(false)
+  const claimedAudio = useRef(false)
   const busy = useRef(false)
   const [pending, setPending] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(false)
   const [volumeSettings, setVolumeSettings] = useState<VolumeSettings>(() => {
-    try { return parseVolumeSettings(localStorage.getItem(volumeStorageKey)) } catch { return defaultVolumeSettings }
+    let stored = defaultVolumeSettings
+    try { stored = parseVolumeSettings(localStorage.getItem(volumeStorageKey)) } catch {}
+    return isDisplay ? displayVolumeSettings(stored) : stored
   })
   const [blocked, setBlocked] = useState(false)
   const [error, setError] = useState('')
@@ -65,6 +73,14 @@ export function PlayerPage() {
   const disabled = !connected || !current || !playback || pending
 
   const advance = useEffectEvent(() => { void command('ended') })
+
+  /** A browser that refuses to play with sound gets a muted player: the picture matters more. */
+  function giveUpSound(reason: unknown) {
+    if (!(reason instanceof DOMException) || reason.name !== 'NotAllowedError') return
+    activated.current = false
+    setSoundEnabled(false)
+    setBlocked(true)
+  }
 
   useEffect(() => {
     const media = video.current
@@ -96,9 +112,10 @@ export function PlayerPage() {
           if (starting) return
           starting = true
           void media.play().then(() => {
-            if (!disposed) setBlocked(false)
+            // Playing muted is what a refusal falls back to, so it does not clear the refusal.
+            if (!disposed && !media.muted) setBlocked(false)
           }).catch(reason => {
-            if (!disposed && reason instanceof DOMException && reason.name === 'NotAllowedError') setBlocked(true)
+            if (!disposed) giveUpSound(reason)
           }).finally(() => { starting = false })
         },
       })
@@ -127,17 +144,21 @@ export function PlayerPage() {
     const media = video.current
     if (!media || (activated.current && !blocked)) return
     activated.current = true
-    media.muted = soundMuted
+    // The element follows the saved setting here; `soundMuted` still reports the pre-activation silence.
+    media.muted = isVolumeMuted(volumeSettings)
     setSoundEnabled(true)
     // Invoke play synchronously inside the user gesture, before any HTTP await.
-    if (connected && playback?.isPlaying && current) {
-      void media.play().then(() => setBlocked(false)).catch(() => {
-        activated.current = false
-        setSoundEnabled(false)
-        setBlocked(true)
-      })
-    }
+    if (connected && playback?.isPlaying && current)
+      void media.play().then(() => setBlocked(false)).catch(giveUpSound)
   }
+
+  // Nobody presses anything on a display, so it claims audio itself. Claiming it once is enough:
+  // a browser that refuses gives the same muted playback everyone else gets before the first gesture.
+  useEffect(() => {
+    if (!isDisplay || claimedAudio.current || !video.current) return
+    claimedAudio.current = true
+    activateSound()
+  })
 
   useEffect(() => {
     const activate = () => activateSound()
@@ -178,15 +199,13 @@ export function PlayerPage() {
   }
 
   function toggleMute() {
-    if (blocked) {
-      activateSound()
-      return
-    }
+    const wasEnabled = soundEnabled
     activateSound()
-    setVolumeSettings(toggleVolumeMute)
+    if (!blocked) setVolumeSettings(settings => pressVolumeButton(wasEnabled, settings))
   }
 
-  const soundMuted = isVolumeMuted(volumeSettings)
+  // A player the browser refused to unblock is silent whatever the settings say.
+  const soundMuted = isSoundSilent(soundEnabled && !blocked, volumeSettings)
 
   return <section className="page player-page" aria-labelledby="player-title">
     <h1 id="player-title">Плеер</h1>
@@ -195,7 +214,7 @@ export function PlayerPage() {
         preload="auto" tabIndex={-1} aria-hidden="true" loop={backdrop.loop}
         src={`/api/songs/${encodeURIComponent(current.songId)}/background`} />}
       <video ref={video} src={current ? `/api/songs/${encodeURIComponent(current.songId)}/media` : undefined}
-        playsInline preload="metadata" muted={!soundEnabled || soundMuted} aria-label={current?.title ?? 'Караоке'}
+        playsInline preload="metadata" muted={soundMuted} aria-label={current?.title ?? 'Караоке'}
         onEmptied={() => { setError(''); setDuration(0); setPosition(0) }}
         onLoadedMetadata={event => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
         onDurationChange={event => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
@@ -248,6 +267,7 @@ export function PlayerPage() {
             }} />
         </label>
         <span className="player-time">{formatTime(seek ?? position)} / {formatTime(duration)}</span>
+        {isDisplay && <LogoutButton />}
       </div>
       {blocked && <p id="player-audio-blocked" className="player-audio-status" role="status">{autoplayBlockedMessage}</p>}
       {error && <p className="auth-error player-error" role="alert">{error}</p>}

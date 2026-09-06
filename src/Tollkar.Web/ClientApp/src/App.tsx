@@ -1,12 +1,11 @@
-import { useState } from 'react'
-import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AdminPage } from './admin/AdminPage'
 import { Brand } from './Brand'
 import { LoginPage } from './auth/LoginPage'
 import { PairDevicePage } from './auth/PairDevicePage'
 import { RequireAdmin } from './auth/RequireAdmin'
+import { LogoutButton } from './auth/LogoutButton'
 import { RequireUser } from './auth/RequireUser'
-import { submitAuth } from './auth/api'
 import { canAccessAdmin } from './auth/authorization'
 import { useCurrentUser } from './auth/currentUser'
 import './App.css'
@@ -36,25 +35,13 @@ function App() {
 function AppLayout() {
   const user = useCurrentUser()
   const queue = useQueue(user.id)
-  const navigate = useNavigate()
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState('')
+  const { pathname } = useLocation()
 
-  async function logout() {
-    setPending(true)
-    setError('')
-    try {
-      await submitAuth('logout')
-      navigate('/login', { replace: true })
-    } catch {
-      setError('Не удалось выйти. Повторите попытку.')
-    } finally {
-      setPending(false)
-    }
-  }
+  // A display exists to show the player: whatever page its television restores, it lands there.
+  if (user.isDisplay && pathname !== '/player') return <Navigate to="/player" replace />
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${user.isDisplay ? ' is-display' : ''}`}>
       <header className="app-header">
         <NavLink className="brand" to="/queue" aria-label="Tollkar — к очереди">
           <Brand />
@@ -64,10 +51,9 @@ function AppLayout() {
           <NavLink to="/player">Плеер</NavLink>
           {canAccessAdmin(user) && <NavLink to="/admin">Администрирование</NavLink>}
         </nav>
-        <div className="user-menu"><span>{user.login}</span><button className="secondary-button" disabled={pending} onClick={logout}>{pending ? 'Выходим…' : 'Выйти'}</button></div>
+        <div className="user-menu"><span>{user.login}</span><LogoutButton /></div>
       </header>
       <main className="app-content">
-        {error && <p role="alert">{error}</p>}
         <Outlet context={queue} />
       </main>
     </div>

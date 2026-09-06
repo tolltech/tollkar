@@ -37,6 +37,7 @@ public sealed class DevicePairingTests : IAsyncLifetime
 
         var current = await display.GetFromJsonAsync<JsonElement>("/api/auth/me");
         Assert.True(current.GetProperty("isGuest").GetBoolean());
+        Assert.True(current.GetProperty("isDisplay").GetBoolean());
         var displayQueue = await display.GetFromJsonAsync<JsonElement>("/api/queue/test");
         Assert.Equal(phoneQueue.GetProperty("id").GetString(), displayQueue.GetProperty("id").GetString());
     }

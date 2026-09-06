@@ -12,8 +12,12 @@
 .player-empty { left: 0; padding: 20px; position: absolute; text-align: center; top: 20%; width: 100%; }
 .player-audio-status { color: var(--text-secondary); margin: 0; padding: 0 16px 16px; }
 .player-error { margin: 0; padding: 16px; }
-.web-player:fullscreen { border: 0; border-radius: 0; display: flex; flex-direction: column; height: 100%; width: 100%; }
-.web-player:fullscreen video { flex: 1; min-height: 0; }
+/* A paired display shows nothing but the player, so it gets the fullscreen layout inside the page:
+   a television browser may refuse the Fullscreen API or be left without it. */
+.web-player:fullscreen, .app-shell.is-display .web-player { border: 0; border-radius: 0; display: flex; flex-direction: column; width: 100%; }
+.web-player:fullscreen { height: 100%; }
+.app-shell.is-display .web-player { height: 100vh; height: 100dvh; }
+.web-player:fullscreen video, .app-shell.is-display .web-player video { flex: 1; min-height: 0; }
 
 /* A karaoke song plays its own audio, so the media element carries no picture: the stage is the
    optional backdrop clip with the lyrics drawn over it. */
@@ -51,7 +55,8 @@
 /* The windowed clamps above hit their ceiling at ~880px wide, so a fullscreen monitor or TV would
    otherwise show the same small text as the window. The height term keeps both lines in frame when
    the screen is short. */
-.web-player-karaoke:fullscreen .player-lyrics { flex: 1; gap: clamp(16px, 3vh, 40px);
+.web-player-karaoke:fullscreen .player-lyrics,
+.app-shell.is-display .web-player-karaoke .player-lyrics { flex: 1; gap: clamp(16px, 3vh, 40px);
   padding: clamp(24px, 4vh, 64px);
   --lyric-current-size: clamp(32px, min(6vw, 10vh), 96px);
   --lyric-next-size: clamp(20px, min(3.6vw, 6vh), 56px); }

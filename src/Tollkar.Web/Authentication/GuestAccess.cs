@@ -9,11 +9,18 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Tollkar.Web.Authentication;
 
+public enum GuestDevice
+{
+    Personal,
+    Display
+}
+
 public sealed class GuestAccess(IDataProtectionProvider dataProtection, TimeProvider timeProvider)
 {
     public const string AuthenticationScheme = "Tollkar.Guest";
     public const string GuestClaim = "tollkar:guest";
     public const string ExpirationClaim = "tollkar:guest-expires";
+    public const string DisplayClaim = "tollkar:display";
     private readonly IDataProtector protector = dataProtection.CreateProtector("Tollkar.GuestAccess.v1");
     private readonly ConcurrentDictionary<(string OwnerId, DateOnly Date), string> tokens = new();
 
@@ -44,7 +51,7 @@ public sealed class GuestAccess(IDataProtectionProvider dataProtection, TimeProv
         => ExpirationFor(CurrentDate());
 
     /// <summary>Replaces any account session with a guest one that shares the owner's queue.</summary>
-    public async Task SignInAsync(HttpContext context, GuestGrant grant)
+    public async Task SignInAsync(HttpContext context, GuestGrant grant, GuestDevice device)
     {
         var identity = new ClaimsIdentity([
             new Claim(ClaimTypes.NameIdentifier, grant.OwnerId),
@@ -52,6 +59,9 @@ public sealed class GuestAccess(IDataProtectionProvider dataProtection, TimeProv
             new Claim(GuestClaim, bool.TrueString),
             new Claim(ExpirationClaim, grant.ExpiresAt.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture))
         ], AuthenticationScheme);
+        // A display shows the player instead of the queue, so the session says which device it is.
+        if (device is GuestDevice.Display)
+            identity.AddClaim(new Claim(DisplayClaim, bool.TrueString));
         await context.SignOutAsync(IdentityConstants.ApplicationScheme);
         await context.SignInAsync(AuthenticationScheme, new ClaimsPrincipal(identity),
             new AuthenticationProperties { IsPersistent = false, ExpiresUtc = grant.ExpiresAt });
@@ -105,7 +115,7 @@ public static class GuestAccessEndpoints
             if (grant is null || await users.FindByIdAsync(grant.OwnerId) is null || access.IsExpired(grant))
                 return Results.Redirect("/login?guest=expired");
 
-            await access.SignInAsync(context, grant);
+            await access.SignInAsync(context, grant, GuestDevice.Personal);
             return Results.Redirect("/queue");
         }).AllowAnonymous();
     }

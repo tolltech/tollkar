@@ -30,6 +30,8 @@ public sealed class GuestAccessTests : IAsyncLifetime
 
         var current = await guest.GetFromJsonAsync<JsonElement>("/api/auth/me");
         Assert.True(current.GetProperty("isGuest").GetBoolean());
+        // A shared link opens a personal device, not a display that takes over the player.
+        Assert.False(current.GetProperty("isDisplay").GetBoolean());
         Assert.Equal("Гость", current.GetProperty("login").GetString());
         var guestState = await guest.GetFromJsonAsync<JsonElement>("/api/queue/test");
         Assert.Equal(ownerState.GetProperty("id").GetString(), guestState.GetProperty("id").GetString());

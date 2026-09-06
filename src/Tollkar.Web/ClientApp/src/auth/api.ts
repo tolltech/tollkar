@@ -1,7 +1,7 @@
 import { mutate, sendMutation } from '../api/request'
 import type { PairingOutcome, PairingRequest } from './pairing'
 
-export type User = { id: string; login: string; isAdmin: boolean; isGuest: boolean }
+export type User = { id: string; login: string; isAdmin: boolean; isGuest: boolean; isDisplay: boolean }
 
 export async function getCurrentUser(signal?: AbortSignal): Promise<User | null> {
   const response = await fetch('/api/auth/me', { credentials: 'same-origin', signal })

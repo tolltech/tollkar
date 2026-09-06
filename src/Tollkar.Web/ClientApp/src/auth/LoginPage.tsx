@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Brand } from '../Brand'
-import { submitAuth } from './api'
+import { getCurrentUser, submitAuth } from './api'
 import { DeviceLogin } from './DeviceLogin'
 
 export function LoginPage() {
@@ -11,6 +11,15 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
+
+  // A display restarted by its television lands here with a live session: send it back to the player.
+  useEffect(() => {
+    const controller = new AbortController()
+    getCurrentUser(controller.signal)
+      .then(user => { if (user?.isDisplay) navigate('/player', { replace: true }) })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [navigate])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
