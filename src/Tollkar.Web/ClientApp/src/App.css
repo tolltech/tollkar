@@ -187,9 +187,10 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .app-shell.is-display .current-song,
 .app-shell.is-display .connection-status.is-connected { display: none; }
 .app-shell.is-display .app-content { max-width: none; padding: 0; }
-/* Only a lost connection ever shows here, so the strip never takes a click from the controls. */
+/* Only a lost connection ever shows here: the strip never takes a click from the controls, and it
+   stays above the panel that overlays the stage on a full screen. */
 .app-shell.is-display .queue-state { bottom: 0; inset-inline: 0; margin: 0; padding: 12px 16px;
-  pointer-events: none; position: fixed; }
+  pointer-events: none; position: fixed; z-index: 3; }
 
 .admin-panel {
   background: rgba(20, 17, 35, 0.84);

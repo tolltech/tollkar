@@ -13,11 +13,32 @@
 .player-audio-status { color: var(--text-secondary); margin: 0; padding: 0 16px 16px; }
 .player-error { margin: 0; padding: 16px; }
 /* A paired display shows nothing but the player, so it gets the fullscreen layout inside the page:
-   a television browser may refuse the Fullscreen API or be left without it. */
-.web-player:fullscreen, .app-shell.is-display .web-player { border: 0; border-radius: 0; display: flex; flex-direction: column; width: 100%; }
+   a television browser may refuse the Fullscreen API or be left without it. `is-immersive` marks
+   both cases, so a browser that cannot parse `:fullscreen` still lays a display out properly and
+   the layout never disagrees with the state the player hides the panel from. */
+.web-player.is-immersive { border: 0; border-radius: 0; display: flex; flex-direction: column; width: 100%; }
 .web-player:fullscreen { height: 100%; }
 .app-shell.is-display .web-player { height: 100vh; height: 100dvh; }
-.web-player:fullscreen video, .app-shell.is-display .web-player video { flex: 1; min-height: 0; }
+.web-player.is-immersive video { flex: 1; min-height: 0; }
+/* The panel becomes an overlay: left in the flex column it would resize the picture every time it
+   hides. Reversing the column keeps the buttons at the very bottom and lifts the status lines above
+   them, so a message stays readable once the buttons fade out. */
+.web-player.is-immersive .player-chrome {
+  bottom: 0; display: flex; flex-direction: column-reverse; inset-inline: 0; position: absolute; z-index: 2; }
+/* The scrim keeps the icons readable over a bright frame. */
+.web-player.is-immersive .player-controls {
+  background: linear-gradient(to top, rgba(8, 7, 16, 0.9), rgba(8, 7, 16, 0));
+  max-height: 60vh; overflow: hidden; padding-top: 56px;
+  transition: max-height 200ms ease, opacity 200ms ease, padding 200ms ease, visibility 200ms; }
+/* Only the buttons fade: a refusal or a playback error has to stay on screen without them.
+   `visibility` also takes the hidden panel out of the tab order and out of the accessibility tree. */
+/* The buttons also give their height back: a status line left alone must not hang in mid-screen
+   over the box they no longer fill. */
+.web-player.is-immersive.is-idle .player-controls {
+  max-height: 0; opacity: 0; padding-block: 0; visibility: hidden; }
+.web-player.is-immersive.is-idle { cursor: none; }
+/* A message left alone over the picture carries no scrim of its own, so it brings a band with it. */
+.web-player.is-immersive .player-notice { background: rgba(8, 7, 16, 0.9); padding: 8px 16px; }
 
 /* A karaoke song plays its own audio, so the media element carries no picture: the stage is the
    optional backdrop clip with the lyrics drawn over it. */
@@ -31,9 +52,7 @@
   linear-gradient(135deg, #0e0a20, #170d2c 55%, #240f34); opacity: 0.85; }
 /* The backdrop is positioned, so everything drawn over it has to be positioned too: static
    siblings would paint underneath it and stop taking clicks. */
-.web-player-karaoke > .player-controls,
-.web-player-karaoke > .player-audio-status,
-.web-player-karaoke > .player-error,
+.web-player-karaoke > .player-chrome,
 .web-player-karaoke > .player-lyrics { position: relative; }
 .player-lyrics { --lyric-current-size: clamp(24px, 5vw, 44px); --lyric-next-size: clamp(16px, 3vw, 26px);
   display: flex; flex-direction: column; gap: 16px; justify-content: center;
@@ -55,13 +74,17 @@
 /* The windowed clamps above hit their ceiling at ~880px wide, so a fullscreen monitor or TV would
    otherwise show the same small text as the window. The height term keeps both lines in frame when
    the screen is short. */
-.web-player-karaoke:fullscreen .player-lyrics,
-.app-shell.is-display .web-player-karaoke .player-lyrics { flex: 1; gap: clamp(16px, 3vh, 40px);
-  padding: clamp(24px, 4vh, 64px);
+.web-player-karaoke.is-immersive .player-lyrics { flex: 1; gap: clamp(16px, 3vh, 40px);
+  padding: clamp(24px, 4vh, 64px); transition: padding-bottom 200ms ease;
   --lyric-current-size: clamp(32px, min(6vw, 10vh), 96px);
   --lyric-next-size: clamp(20px, min(3.6vw, 6vh), 56px); }
+/* The panel floats over the stage, so the lines step aside for as long as it is on screen; the
+   transition above belongs to the base rule because it has to run in both directions. */
+.web-player-karaoke.is-immersive:not(.is-idle) .player-lyrics { padding-bottom: clamp(96px, 16vh, 180px); }
 
 @media (max-width: 640px) {
   .player-controls > button { flex: 1; }
   .player-volume, .player-seek { flex-basis: 100%; }
+  /* Volume and seek take rows of their own here, so the panel needs far more room over the lyrics. */
+  .web-player-karaoke.is-immersive:not(.is-idle) .player-lyrics { padding-bottom: min(240px, 46vh); }
 }

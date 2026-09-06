@@ -22,6 +22,7 @@ import {
   pressVolumeButton,
   type VolumeSettings,
 } from './volume'
+import { holdsControls, idleRemainingMs, takesControlsFocus, type ControlsActivity } from './controls'
 import './player.css'
 
 const volumeStorageKey = 'tollkar.player.volume'
@@ -55,6 +56,10 @@ export function PlayerPage() {
   const video = useRef<HTMLVideoElement>(null)
   const background = useRef<HTMLVideoElement>(null)
   const stage = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const playButton = useRef<HTMLButtonElement>(null)
+  const activityAt = useRef(performance.now())
+  const awaitingFocus = useRef(false)
   const activated = useRef(false)
   const claimedAudio = useRef(false)
   const busy = useRef(false)
@@ -70,7 +75,14 @@ export function PlayerPage() {
   const [duration, setDuration] = useState(0)
   const [position, setPosition] = useState(0)
   const [seek, setSeek] = useState<number | null>(null)
+  const [stageFullscreen, setStageFullscreen] = useState(false)
+  const [controlsVisible, setControlsVisible] = useState(true)
+  const [hovered, setHovered] = useState(false)
   const disabled = !connected || !current || !playback || pending
+  const seeking = seek !== null
+  // A display is a television: its page layout is the full screen even without the browser mode.
+  // Only the stage counts, so the state cannot disagree with the `:fullscreen` rules that hide the panel.
+  const immersive = isDisplay || stageFullscreen
 
   /** A browser that refuses to play with sound gets a muted player: the picture matters more. */
   function giveUpSound(reason: unknown) {
@@ -168,6 +180,73 @@ export function PlayerPage() {
     }
   })
 
+  function panelHoldsFocus() {
+    return Boolean(panel.current?.contains(document.activeElement))
+  }
+
+  function takePanelFocus() {
+    if (!awaitingFocus.current) return
+    playButton.current?.focus({ preventScroll: true })
+    // A disabled button refuses the focus, so the request outlives the press that made it.
+    if (panelHoldsFocus()) awaitingFocus.current = false
+  }
+
+  // Entering and leaving the full screen both start the panel visible, as a fresh page does. The
+  // cursor stays where the button it just pressed was, so the hover it reported cannot be trusted.
+  useEffect(() => {
+    function track() {
+      activityAt.current = performance.now()
+      setStageFullscreen(document.fullscreenElement === stage.current)
+      setControlsVisible(true)
+      setHovered(false)
+    }
+    document.addEventListener('fullscreenchange', track)
+    return () => document.removeEventListener('fullscreenchange', track)
+  }, [])
+
+  const noteActivity = useEffectEvent((activity: ControlsActivity) => {
+    activityAt.current = performance.now()
+    // Assigning rather than raising the flag drops a request the pointer has taken over since.
+    awaitingFocus.current = takesControlsFocus(activity, { visible: controlsVisible, holdsFocus: panelHoldsFocus() })
+    setControlsVisible(true)
+    if (controlsVisible) takePanelFocus()
+  })
+
+  useEffect(() => {
+    if (!immersive) return
+    const moved = () => noteActivity('pointer')
+    const pressed = () => noteActivity('key')
+    document.addEventListener('pointermove', moved)
+    // A touch screen has no pointer to move, so a tap is the only way it can bring the panel back.
+    document.addEventListener('pointerdown', moved)
+    document.addEventListener('keydown', pressed)
+    return () => {
+      document.removeEventListener('pointermove', moved)
+      document.removeEventListener('pointerdown', moved)
+      document.removeEventListener('keydown', pressed)
+    }
+  }, [immersive])
+
+  useEffect(() => {
+    if (!immersive || !controlsVisible || holdsControls({ hovered, seeking })) return
+    let timer = 0
+    function check() {
+      const remaining = idleRemainingMs(activityAt.current, performance.now())
+      // Activity only stamps the ref, so the timer waits out the newest one instead of restarting.
+      if (remaining > 0) { timer = window.setTimeout(check, remaining); return }
+      // The next remote key has to reach the document: focus cannot stay on a button nobody can see.
+      if (panelHoldsFocus()) stage.current?.focus({ preventScroll: true })
+      setControlsVisible(false)
+    }
+    check()
+    return () => clearTimeout(timer)
+  }, [immersive, controlsVisible, hovered, seeking])
+
+  // The panel has to be on screen before it can take the focus a remote key handed it.
+  useEffect(() => {
+    if (controlsVisible) takePanelFocus()
+  }, [controlsVisible])
+
   const advance = useEffectEvent(() => { void command('ended') })
   const remotePlay = useEffectEvent(() => {
     activateSound()
@@ -249,10 +328,12 @@ export function PlayerPage() {
 
   // A player the browser refused to unblock is silent whatever the settings say.
   const soundMuted = isSoundSilent(soundEnabled && !blocked, volumeSettings)
+  const stageClass = `web-player${karaoke ? ' web-player-karaoke' : ''}`
+    + `${immersive ? ' is-immersive' : ''}${controlsVisible ? '' : ' is-idle'}`
 
   return <section className="page player-page" aria-labelledby="player-title">
     <h1 id="player-title">Плеер</h1>
-    <div className={`web-player${karaoke ? ' web-player-karaoke' : ''}`} ref={stage}>
+    <div className={stageClass} ref={stage} tabIndex={-1}>
       {current && backdrop && <video ref={background} className="player-backdrop" muted playsInline
         preload="auto" tabIndex={-1} aria-hidden="true" loop={backdrop.loop}
         src={`/api/songs/${encodeURIComponent(current.songId)}/background`} />}
@@ -274,46 +355,49 @@ export function PlayerPage() {
       <KaraokeVisualizer enabled={Boolean(karaoke && !backdrop)} media={video} prepare={isKaraoke(current)} />
       {karaoke && <Lyrics lines={karaoke.lines} media={video} />}
       {!current && <p className="player-empty">Выберите песню в очереди, чтобы начать.</p>}
-      <div className="player-controls">
-        <button type="button" className="primary-button player-icon-button" aria-label={playback?.isPlaying ? 'Пауза' : 'Играть'}
-          title={playback?.isPlaying ? 'Пауза' : 'Играть'} disabled={disabled} onClick={() => {
-          if (!playback?.isPlaying) {
-            activateSound()
-            void video.current?.play().catch(() => {})
-          }
-          void command(playback?.isPlaying ? 'pause' : 'play')
-        }}>{playback?.isPlaying ? <PlayerIcon name="pause" /> : <PlayerIcon name="play" />}</button>
-        <button type="button" className="secondary-button player-icon-button" aria-label="Следующая песня" title="Следующая песня"
-          disabled={disabled} onClick={() => void command('next')}><PlayerIcon name="next" /></button>
-        <button type="button" className="secondary-button player-icon-button" aria-label="Полный экран" title="Полный экран"
-          onClick={() => void fullscreen()}><PlayerIcon name="fullscreen" /></button>
-        <div className="player-volume">
-          <button type="button" className="secondary-button player-icon-button" aria-label="Звук"
-            title={blocked ? 'Разрешить воспроизведение' : soundMuted ? 'Включить звук' : 'Выключить звук'}
-            aria-describedby={blocked ? 'player-audio-blocked' : undefined} aria-pressed={!soundMuted} onClick={toggleMute}>
-            <PlayerIcon name={soundMuted ? 'volumeMuted' : 'volume'} />
-          </button>
-          <input type="range" min="0" max="100" step="1" value={volumeSettings.volume} aria-label="Громкость"
-            aria-valuetext={`Громкость: ${volumeSettings.volume}%`} onChange={event => changeVolume(Number(event.target.value))} />
+      <div className="player-chrome" ref={panel}
+        onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}>
+        <div className="player-controls">
+          <button type="button" ref={playButton} className="primary-button player-icon-button" aria-label={playback?.isPlaying ? 'Пауза' : 'Играть'}
+            title={playback?.isPlaying ? 'Пауза' : 'Играть'} disabled={disabled} onClick={() => {
+            if (!playback?.isPlaying) {
+              activateSound()
+              void video.current?.play().catch(() => {})
+            }
+            void command(playback?.isPlaying ? 'pause' : 'play')
+          }}>{playback?.isPlaying ? <PlayerIcon name="pause" /> : <PlayerIcon name="play" />}</button>
+          <button type="button" className="secondary-button player-icon-button" aria-label="Следующая песня" title="Следующая песня"
+            disabled={disabled} onClick={() => void command('next')}><PlayerIcon name="next" /></button>
+          <button type="button" className="secondary-button player-icon-button" aria-label="Полный экран" title="Полный экран"
+            onClick={() => void fullscreen()}><PlayerIcon name="fullscreen" /></button>
+          <div className="player-volume">
+            <button type="button" className="secondary-button player-icon-button" aria-label="Звук"
+              title={blocked ? 'Разрешить воспроизведение' : soundMuted ? 'Включить звук' : 'Выключить звук'}
+              aria-describedby={blocked ? 'player-audio-blocked' : undefined} aria-pressed={!soundMuted} onClick={toggleMute}>
+              <PlayerIcon name={soundMuted ? 'volumeMuted' : 'volume'} />
+            </button>
+            <input type="range" min="0" max="100" step="1" value={volumeSettings.volume} aria-label="Громкость"
+              aria-valuetext={`Громкость: ${volumeSettings.volume}%`} onChange={event => changeVolume(Number(event.target.value))} />
+          </div>
+          <label className="player-seek" aria-label="Позиция воспроизведения">
+            <input type="range" min="0" max={duration} step="0.1" value={seek ?? Math.min(position, duration)}
+              disabled={disabled || duration === 0}
+              aria-label="Позиция воспроизведения"
+              aria-valuetext={formatTime(seek ?? position)}
+              onChange={event => setSeek(Number(event.target.value))}
+              onPointerUp={event => { void command('seek', Number(event.currentTarget.value)); setSeek(null) }}
+              onKeyUp={event => {
+                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+                  void command('seek', Number(event.currentTarget.value)); setSeek(null)
+                }
+              }} />
+          </label>
+          <span className="player-time">{formatTime(seek ?? position)} / {formatTime(duration)}</span>
+          {isDisplay && <LogoutButton />}
         </div>
-        <label className="player-seek" aria-label="Позиция воспроизведения">
-          <input type="range" min="0" max={duration} step="0.1" value={seek ?? Math.min(position, duration)}
-            disabled={disabled || duration === 0}
-            aria-label="Позиция воспроизведения"
-            aria-valuetext={formatTime(seek ?? position)}
-            onChange={event => setSeek(Number(event.target.value))}
-            onPointerUp={event => { void command('seek', Number(event.currentTarget.value)); setSeek(null) }}
-            onKeyUp={event => {
-              if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
-                void command('seek', Number(event.currentTarget.value)); setSeek(null)
-              }
-            }} />
-        </label>
-        <span className="player-time">{formatTime(seek ?? position)} / {formatTime(duration)}</span>
-        {isDisplay && <LogoutButton />}
+        {blocked && <p id="player-audio-blocked" className="player-audio-status player-notice" role="status">{autoplayBlockedMessage}</p>}
+        {error && <p className="auth-error player-error player-notice" role="alert">{error}</p>}
       </div>
-      {blocked && <p id="player-audio-blocked" className="player-audio-status" role="status">{autoplayBlockedMessage}</p>}
-      {error && <p className="auth-error player-error" role="alert">{error}</p>}
     </div>
     <QueueState />
   </section>
