@@ -3,6 +3,7 @@ import { Navigate, NavLink, Outlet, Route, Routes, useNavigate } from 'react-rou
 import { AdminPage } from './admin/AdminPage'
 import { Brand } from './Brand'
 import { LoginPage } from './auth/LoginPage'
+import { PairDevicePage } from './auth/PairDevicePage'
 import { RequireAdmin } from './auth/RequireAdmin'
 import { RequireUser } from './auth/RequireUser'
 import { submitAuth } from './auth/api'
@@ -18,6 +19,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireUser />}>
+        <Route path="/pair/:code" element={<PairDevicePage />} />
         <Route element={<AppLayout />}>
           <Route path="/queue" element={<QueuePage />} />
           <Route path="/player" element={<PlayerPage />} />

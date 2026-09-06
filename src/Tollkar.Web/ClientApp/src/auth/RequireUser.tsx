@@ -4,7 +4,7 @@ import { getCurrentUser, type User } from './api'
 import { CurrentUserContext } from './currentUser'
 
 export function RequireUser() {
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const [result, setResult] = useState<{ path: string; user?: User | null; error?: string }>()
   const [attempt, setAttempt] = useState(0)
 
@@ -20,6 +20,7 @@ export function RequireUser() {
 
   if (!result || result.path !== pathname) return <main className="app-content" role="status">Проверяем сессию…</main>
   if (result.error) return <main className="app-content"><p role="alert">{result.error}</p><button onClick={() => { setResult(undefined); setAttempt(value => value + 1) }}>Повторить</button></main>
-  if (!result.user) return <Navigate to="/login" replace />
+  // Preserve the target so a pairing link opened while signed out survives the login.
+  if (!result.user) return <Navigate to="/login" replace state={{ from: pathname + search }} />
   return <CurrentUserContext.Provider value={result.user}><Outlet /></CurrentUserContext.Provider>
 }

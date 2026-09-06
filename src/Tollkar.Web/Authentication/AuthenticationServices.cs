@@ -25,6 +25,7 @@ public static class AuthenticationServices
         authentication.AddIdentityCookies();
         authentication.AddCookie(GuestAccess.AuthenticationScheme, options => ConfigureCookie(options, builder));
         builder.Services.AddSingleton<GuestAccess>();
+        builder.Services.AddSingleton<DevicePairing>();
         builder.Services.ConfigureApplicationCookie(options =>
         {
             ConfigureCookie(options, builder);

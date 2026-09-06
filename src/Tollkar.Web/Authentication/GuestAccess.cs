@@ -5,9 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
-using QRCoder;
 
 namespace Tollkar.Web.Authentication;
 
@@ -44,6 +42,20 @@ public sealed class GuestAccess(IDataProtectionProvider dataProtection, TimeProv
 
     public DateTimeOffset ExpiresAt()
         => ExpirationFor(CurrentDate());
+
+    /// <summary>Replaces any account session with a guest one that shares the owner's queue.</summary>
+    public async Task SignInAsync(HttpContext context, GuestGrant grant)
+    {
+        var identity = new ClaimsIdentity([
+            new Claim(ClaimTypes.NameIdentifier, grant.OwnerId),
+            new Claim(ClaimTypes.Name, "Гость"),
+            new Claim(GuestClaim, bool.TrueString),
+            new Claim(ExpirationClaim, grant.ExpiresAt.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture))
+        ], AuthenticationScheme);
+        await context.SignOutAsync(IdentityConstants.ApplicationScheme);
+        await context.SignInAsync(AuthenticationScheme, new ClaimsPrincipal(identity),
+            new AuthenticationProperties { IsPersistent = false, ExpiresUtc = grant.ExpiresAt });
+    }
 
     public bool IsExpired(GuestGrant grant) => grant.ExpiresAt <= timeProvider.GetUtcNow();
 
@@ -83,10 +95,7 @@ public static class GuestAccessEndpoints
                 return Results.Forbid();
 
             var ownerId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-            var url = GuestUrl(context.Request, access.CreateToken(ownerId));
-            using var data = QRCodeGenerator.GenerateQrCode(url, QRCodeGenerator.ECCLevel.M);
-            using var code = new SvgQRCode(data);
-            return Results.Text(code.GetGraphic(5), "image/svg+xml");
+            return AccessLinks.QrCode(GuestUrl(context.Request, access.CreateToken(ownerId)));
         }).RequireAuthorization();
 
         app.MapGet("/guest/{token}", async (string token, GuestAccess access,
@@ -96,23 +105,11 @@ public static class GuestAccessEndpoints
             if (grant is null || await users.FindByIdAsync(grant.OwnerId) is null || access.IsExpired(grant))
                 return Results.Redirect("/login?guest=expired");
 
-            var identity = new ClaimsIdentity([
-                new Claim(ClaimTypes.NameIdentifier, grant.OwnerId),
-                new Claim(ClaimTypes.Name, "Гость"),
-                new Claim(GuestAccess.GuestClaim, bool.TrueString),
-                new Claim(GuestAccess.ExpirationClaim,
-                    grant.ExpiresAt.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture))
-            ], GuestAccess.AuthenticationScheme);
-            await context.SignOutAsync(IdentityConstants.ApplicationScheme);
-            await context.SignInAsync(GuestAccess.AuthenticationScheme, new ClaimsPrincipal(identity),
-                new AuthenticationProperties { IsPersistent = false, ExpiresUtc = grant.ExpiresAt });
+            await access.SignInAsync(context, grant);
             return Results.Redirect("/queue");
         }).AllowAnonymous();
     }
 
-    private static string GuestUrl(HttpRequest request, string token)
-    {
-        var guestPath = "/guest/" + Uri.EscapeDataString(token);
-        return UriHelper.BuildAbsolute(request.Scheme, request.Host, request.PathBase, guestPath);
-    }
+    private static string GuestUrl(HttpRequest request, string token) =>
+        AccessLinks.Absolute(request, "/guest/" + Uri.EscapeDataString(token));
 }

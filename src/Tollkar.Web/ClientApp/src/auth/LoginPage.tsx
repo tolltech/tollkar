@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Brand } from '../Brand'
 import { submitAuth } from './api'
+import { DeviceLogin } from './DeviceLogin'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const destination = (useLocation().state as { from?: string } | null)?.from ?? '/queue'
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
@@ -18,7 +20,7 @@ export function LoginPage() {
     try {
       await submitAuth('login', { login, password })
       setPassword('')
-      navigate('/queue', { replace: true })
+      navigate(destination, { replace: true })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Ошибка соединения. Повторите попытку.')
     } finally {
@@ -40,6 +42,7 @@ export function LoginPage() {
           {error && <p className="auth-error" role="alert">{error}</p>}
           <button className="primary-button" disabled={pending} type="submit">{pending ? 'Отправляем…' : 'Войти'}</button>
         </form>
+        <DeviceLogin />
       </section>
     </main>
   )

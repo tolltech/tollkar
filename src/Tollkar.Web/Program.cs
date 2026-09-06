@@ -57,6 +57,7 @@ app.UseAuthorization();
 app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
 app.MapAuthEndpoints();
 app.MapGuestAccessEndpoints();
+app.MapDevicePairingEndpoints();
 app.MapCatalogEndpoints();
 app.MapMediaEndpoints();
 app.MapHub<KaraokeHub>("/api/karaoke");

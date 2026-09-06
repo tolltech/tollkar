@@ -19,7 +19,7 @@ public sealed class GuestAccessTests : IAsyncLifetime
     {
         await application.CreateUserAsync("Alice");
         using var owner = application.CreateSession();
-        await LoginAsync(owner, "Alice");
+        await AuthApplication.SignInAsync(owner, "Alice");
         var ownerState = await owner.GetFromJsonAsync<JsonElement>("/api/queue/test");
         var access = await owner.GetFromJsonAsync<JsonElement>("/api/guest/access");
 
@@ -41,7 +41,7 @@ public sealed class GuestAccessTests : IAsyncLifetime
     {
         await application.CreateUserAsync("Alice");
         using var owner = application.CreateSession();
-        await LoginAsync(owner, "Alice");
+        await AuthApplication.SignInAsync(owner, "Alice");
         var access = await owner.GetFromJsonAsync<JsonElement>("/api/guest/access");
         time.Advance(TimeSpan.FromDays(1));
 
@@ -58,11 +58,11 @@ public sealed class GuestAccessTests : IAsyncLifetime
         await application.CreateUserAsync("Alice");
         await application.CreateUserAsync("Bob");
         using var alice = application.CreateSession();
-        await LoginAsync(alice, "Alice");
+        await AuthApplication.SignInAsync(alice, "Alice");
         var access = await alice.GetFromJsonAsync<JsonElement>("/api/guest/access");
 
         using var bob = application.CreateSession();
-        await LoginAsync(bob, "Bob");
+        await AuthApplication.SignInAsync(bob, "Bob");
         using var enter = await bob.GetAsync(access.GetProperty("url").GetString());
         Assert.Equal(HttpStatusCode.Redirect, enter.StatusCode);
 
@@ -72,23 +72,5 @@ public sealed class GuestAccessTests : IAsyncLifetime
         Assert.Equal(current.GetProperty("id").GetString(), queue.GetProperty("id").GetString());
         var aliceQueue = await alice.GetFromJsonAsync<JsonElement>("/api/queue/test");
         Assert.Equal(aliceQueue.GetProperty("id").GetString(), queue.GetProperty("id").GetString());
-    }
-
-    private static async Task LoginAsync(HttpClient client, string login)
-    {
-        var csrf = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login");
-        request.Headers.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
-        request.Content = JsonContent.Create(new { login, password = AuthApplication.Password });
-        (await client.SendAsync(request)).EnsureSuccessStatusCode();
-    }
-
-    private sealed class AdjustableTimeProvider(DateTimeOffset now) : TimeProvider
-    {
-        private DateTimeOffset current = now;
-        public override TimeZoneInfo LocalTimeZone { get; } = TimeZoneInfo.CreateCustomTimeZone(
-            "Test", now.Offset, "Test", "Test");
-        public override DateTimeOffset GetUtcNow() => current.ToUniversalTime();
-        public void Advance(TimeSpan interval) => current = current.Add(interval);
     }
 }

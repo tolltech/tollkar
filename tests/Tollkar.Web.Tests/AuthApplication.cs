@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -68,6 +70,20 @@ public sealed class AuthApplication : WebApplicationFactory<Program>
     {
         BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false, HandleCookies = true
     });
+
+    public static async Task SignInAsync(HttpClient client, string login)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login");
+        request.Headers.Add("X-CSRF-TOKEN", await CsrfTokenAsync(client));
+        request.Content = JsonContent.Create(new { login, password = Password });
+        (await client.SendAsync(request)).EnsureSuccessStatusCode();
+    }
+
+    public static async Task<string?> CsrfTokenAsync(HttpClient client)
+    {
+        var csrf = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
+        return csrf.GetProperty("token").GetString();
+    }
 
     public async Task CreateUserAsync(string login, string password = Password)
     {

@@ -72,6 +72,20 @@ link and the resulting guest session expire at the next calendar date in the ser
 page left open refreshes the QR code at that boundary. Persist Data Protection keys in production because
 they are also used to validate guest links.
 
+A display that cannot type credentials, such as a television, signs in from the QR code that `/login` shows
+on request.
+`POST /api/pairing/requests` returns a public `userCode` that the QR code encodes into a link to
+`/pair/{userCode}`, and a secret `deviceCode` that stays in the display's tab and travels only in a request
+body. Both screens print the `userCode` so the person confirming can compare them: an authenticated phone
+opens that link, checks the code and confirms or declines; guest sessions cannot confirm one, and a second
+account confirming the same code is refused with 409. The display polls `POST /api/pairing/session` with both
+codes and receives the same kind of guest session as a guest link: the owner's queue and player, no
+administration, expiring at the next calendar date on the server. Confirmation grants exactly one session and
+the request itself lives five minutes in process memory only, so a restart cancels pending pairings.
+Pending requests are capped per client address and overall; a display over its budget replaces its own oldest
+code and a crowded server drops the busiest client's, preferring codes nobody has confirmed yet, so a caller
+cannot lock other displays out.
+
 ## Library and personal queues
 
 Set `Library__DatabasePath` to the shared catalog SQLite file (default `tollkar-library.db`, relative to

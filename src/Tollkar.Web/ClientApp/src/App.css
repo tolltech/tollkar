@@ -170,6 +170,16 @@ button:disabled { cursor: wait; opacity: 0.6; }
 button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent-light); outline-offset: 3px; }
 .login-card h1 { font-size: clamp(42px, 7vw, 76px); }
 
+.device-login { border-top: 1px solid var(--border); margin-top: 40px; padding-top: 24px; }
+.device-login h2 { font-size: 22px; }
+.device-login p { color: var(--text-secondary); margin: 8px 0 20px; }
+/* The QR code needs a fixed light ground to stay scannable, so its panel keeps literal colors. */
+.device-login-code { align-items: center; background: #fff; border-radius: 18px; display: flex; justify-content: center; margin-top: 20px; min-height: 220px; padding: 16px; }
+.device-login-code img { height: auto; width: min(100%, 260px); }
+.device-login-code span { color: #141123; }
+.device-login-key { font-size: 18px; letter-spacing: 2px; margin-top: 16px; }
+.pair-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+
 .admin-panel {
   background: rgba(20, 17, 35, 0.84);
   border: 1px solid var(--border);
@@ -188,7 +198,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .admin-song-table td:last-child, .admin-song-table th:last-child { text-align: right; }
 
 .admin-panel h2 { margin-bottom: 24px; }
-.admin-notice { color: #8de8bd; overflow-wrap: anywhere; }
+.admin-notice, .app-notice { color: #8de8bd; overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {
   .app-header, .page-heading { align-items: stretch; flex-direction: column; }
