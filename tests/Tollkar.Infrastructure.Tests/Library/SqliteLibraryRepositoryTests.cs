@@ -98,39 +98,41 @@ public sealed class SqliteLibraryRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchOrdersSongsByPlayCountThenFolderArtistAndTitle()
+    public async Task SearchOrdersSongsByPlayCountThenKnownFolderPriorityArtistAndTitle()
     {
         var repository = new SqliteLibraryRepository(Path.Combine(_directory, "library.db"));
         await repository.InitializeAsync();
         var rootPath = Path.Combine(_directory, "songs");
         var root = await repository.AddRootAsync(rootPath);
         await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Zeta - Root.mp4"), "Root", "Zeta");
-        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Bravo", "Zeta - B.mp4"), "B", "Zeta");
-        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Alpha", "Zeta - A.mp4"), "A", "Zeta");
-        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Alpha", "Alpha - A.mp4"), "A", "Alpha");
-        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Bravo", "Alpha - A.mp4"), "A", "Alpha");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "kar2017", "Zeta - D.mp4"), "D", "Zeta");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "karafun", "Zeta - C.mp4"), "C", "Zeta");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "klavish", "Zeta - B.mp4"), "B", "Zeta");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "kalinka", "Zeta - A.mp4"), "A", "Zeta");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "kalinka", "Alpha - A.mp4"), "A", "Alpha");
+        await IndexSongAsync(repository, root.Id, Path.Combine(rootPath, "Alpha", "Unknown.mp4"), "Unknown");
         var popularSong = Assert.Single(await repository.SearchSongsAsync(new LibrarySearchQuery("Root")));
         await repository.IncrementPlayCountAsync(popularSong.Id);
 
         var songs = await repository.SearchSongsAsync(new());
 
         Assert.Equal(
-            new[] { "Root", "A", "A", "A", "B" },
+            new[] { "Root", "A", "A", "B", "C", "D", "Unknown" },
             songs.Select(song => song.Title));
         Assert.Equal(
-            new string?[] { null, "Alpha", "Alpha", "Bravo", "Bravo" },
+            new string?[] { null, "kalinka", "kalinka", "klavish", "karafun", "kar2017", "Alpha" },
             songs.Select(song => song.Folder));
         Assert.Equal(
-            new string?[] { "Zeta", "Alpha", "Zeta", "Alpha", "Zeta" },
+            new[] { "Zeta", "Alpha", "Zeta", "Zeta", "Zeta", "Zeta", "Кино" },
             songs.Select(song => song.Artist));
 
         var limited = await repository.SearchSongsAsync(new LibrarySearchQuery(Limit: 2));
         Assert.Equal(new[] { "Root", "A" }, limited.Select(song => song.Title));
-        Assert.Equal(new string?[] { null, "Alpha" }, limited.Select(song => song.Folder));
+        Assert.Equal(new string?[] { null, "kalinka" }, limited.Select(song => song.Folder));
 
         await repository.IncrementPlayCountAsync((await repository.SearchSongsAsync(new LibrarySearchQuery("B"))).Single().Id);
         var reordered = await repository.SearchSongsAsync(new());
-        Assert.Equal(new[] { "Root", "B", "A", "A", "A" }, reordered.Select(song => song.Title));
+        Assert.Equal(new[] { "B", "Root", "A", "A", "C", "D", "Unknown" }, reordered.Select(song => song.Title));
     }
 
     [Fact]

@@ -12,7 +12,8 @@ internal sealed class SqliteLibraryRepository(string databasePath) : ILibraryRep
     private const string SongColumns = "s.Id,s.Title,s.Artist,s.DurationTicks,s.Capabilities,s.PlayCount,r.Path,f.Path";
     private const string SongJoins = "JOIN Files f ON f.SongId=s.Id JOIN LibraryRoots r ON r.Id=s.RootId";
     private const string SongFolderSort = "CASE WHEN instr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),'/') > 0 THEN substr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),1,instr(replace(ltrim(substr(f.Path,length(r.Path)+1),'/' || char(92)),char(92),'/'),'/')-1) END";
-    private const string SongOrderAndLimit = "ORDER BY s.PlayCount DESC," + SongFolderSort + ",s.Artist,s.Title,s.Id LIMIT $limit;";
+    private const string SongFolderPriority = "CASE lower(" + SongFolderSort + ") WHEN 'kalinka' THEN 0 WHEN 'klavish' THEN 1 WHEN 'karafun' THEN 2 WHEN 'kar2017' THEN 3 ELSE 4 END";
+    private const string SongOrderAndLimit = "ORDER BY s.PlayCount DESC," + SongFolderPriority + "," + SongFolderSort + ",s.Artist,s.Title,s.Id LIMIT $limit;";
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
 
     private readonly string _connectionString = new SqliteConnectionStringBuilder
