@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { shouldPaintVisualizer, visualizerFrameIntervalMs, visualizerPixelRatio } from './visualizer'
+import { connectVisualizerAudio } from './visualizerAudio'
 
 type KaraokeVisualizerProps = {
   enabled: boolean
@@ -8,7 +9,6 @@ type KaraokeVisualizerProps = {
 }
 
 const BARS = 32
-const FFT_SIZE = 128
 
 /**
  * A deliberately low-detail spectrum for karaoke tracks without a background clip. It is kept
@@ -54,21 +54,31 @@ export function KaraokeVisualizer({ enabled, media, prepare }: KaraokeVisualizer
   }, [])
 
   useEffect(() => {
+    let disposed = false
+    const element = media.current
+    function connect() {
+      const audioContext = context.current
+      if (disposed || !audioContext || audioContext.state !== 'running' || !element) return
+      const existing = source.current && analyzer.current ? { source: source.current, analyzer: analyzer.current } : null
+      const connection = connectVisualizerAudio(audioContext, element, existing)
+      if (!connection) return
+      source.current = connection.source
+      analyzer.current = connection.analyzer
+      setAvailable(true)
+      setAudioReady(true)
+    }
+
     function activate() {
-      if (!prepare || reducedMotion || analyzer.current || !media.current) return
+      if (((!prepare || reducedMotion) && !context.current) || !element) return
       try {
-        const audioContext = new AudioContext()
-        const audioSource = audioContext.createMediaElementSource(media.current)
-        const audioAnalyzer = audioContext.createAnalyser()
-        audioAnalyzer.fftSize = FFT_SIZE
-        audioAnalyzer.smoothingTimeConstant = 0.8
-        audioSource.connect(audioAnalyzer)
-        audioAnalyzer.connect(audioContext.destination)
+        const AudioContextConstructor = window.AudioContext
+          ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        if (!AudioContextConstructor) { setAvailable(false); return }
+        const audioContext = context.current ?? new AudioContextConstructor()
         context.current = audioContext
-        source.current = audioSource
-        analyzer.current = audioAnalyzer
-        void audioContext.resume().then(() => setAudioReady(true)).catch(() => {
-          setAvailable(false)
+        // Do not reroute audible media into a suspended context while autoplay waits for a gesture.
+        void audioContext.resume().then(connect).catch(() => {
+          if (!disposed) setAvailable(false)
         })
       } catch {
         // Some older TV browsers cannot expose an HTML media element to Web Audio.
@@ -78,7 +88,11 @@ export function KaraokeVisualizer({ enabled, media, prepare }: KaraokeVisualizer
 
     document.addEventListener('pointerdown', activate)
     document.addEventListener('keydown', activate)
+    element?.addEventListener('playing', activate)
+    activate()
     return () => {
+      disposed = true
+      element?.removeEventListener('playing', activate)
       document.removeEventListener('pointerdown', activate)
       document.removeEventListener('keydown', activate)
     }
@@ -179,7 +193,7 @@ export function KaraokeVisualizer({ enabled, media, prepare }: KaraokeVisualizer
   if (!enabled) return null
 
   return <div className="karaoke-visualizer" aria-hidden="true">
-    {!reducedMotion && available && <canvas ref={canvas} />}
-    {(reducedMotion || !available) && <div className="karaoke-visualizer-fallback" />}
+    {!reducedMotion && available && audioReady && <canvas ref={canvas} />}
+    {(reducedMotion || !available || !audioReady) && <div className="karaoke-visualizer-fallback" />}
   </div>
 }

@@ -24,6 +24,7 @@ import {
 } from './volume'
 import { holdsControls, idleRemainingMs, takesControlsFocus, type ControlsActivity } from './controls'
 import './player.css'
+import { remotePlaybackAction } from './remote'
 
 const volumeStorageKey = 'tollkar.player.volume'
 const autoplayBlockedMessage = 'Браузер заблокировал воспроизведение. Нажмите кнопку звука, чтобы повторить попытку.'
@@ -267,7 +268,21 @@ export function PlayerPage() {
     seekBy(details.seekTime - playbackPosition(playback, performance.now()))
   })
 
-  // TV remotes expose playback and seek commands through Media Session rather than as keyboard events.
+  const remoteKey = useEffectEvent((event: KeyboardEvent) => {
+    const action = remotePlaybackAction(event)
+    if (!action || event.defaultPrevented) return
+    event.preventDefault()
+    if (event.repeat || disabled) return
+    if (action === 'pause' || (action === 'toggle' && playback?.isPlaying)) remotePause()
+    else remotePlay()
+  })
+
+  useEffect(() => {
+    document.addEventListener('keydown', remoteKey)
+    return () => document.removeEventListener('keydown', remoteKey)
+  }, [])
+
+  // Browsers may deliver remote commands either as keys or through Media Session.
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
     const mediaSession = navigator.mediaSession
