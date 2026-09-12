@@ -172,6 +172,31 @@ public sealed class KaraokeMediaTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task VideoOnlyKfnQueueIdentifiesItsFormatAndExposesBackground()
+    {
+        new KfnFileBuilder()
+            .WithEntry("audio.mp3", 2, Audio)
+            .WithEntry("background.mp4", 5, Mp4Clip)
+            .WithSongDefinition("[General]\nTitle=CDG\nSource=1,I,audio.mp3\n[Eff1]\nVideoFile=background.mp4\nTextCount=0")
+            .WriteTo(Path.Combine(directory, "cdg.kfn"));
+        songId = await IndexAsync("CDG");
+        using var client = await LoginAsync();
+        var csrf = await client.GetFromJsonAsync<JsonElement>("/api/auth/csrf");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/queue");
+        request.Headers.Add("X-CSRF-TOKEN", csrf.GetProperty("token").GetString());
+        request.Content = JsonContent.Create(new { songId });
+        using var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        var snapshot = await client.GetFromJsonAsync<JsonElement>("/api/queue");
+        var item = Assert.Single(snapshot.EnumerateArray());
+        Assert.Equal("kfn", item.GetProperty("providerId").GetString());
+        Assert.Equal(3, item.GetProperty("capabilities").GetInt32());
+        var script = await Script(client);
+        Assert.Empty(script.Lines);
+        Assert.NotNull(script.Background);
+    }
+
     private void Build(string fileName, byte[] clip) =>
         new KfnFileBuilder()
             .WithEntry("Дорогая.mp3", 2, Audio)

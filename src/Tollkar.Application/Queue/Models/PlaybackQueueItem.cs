@@ -9,4 +9,5 @@ public sealed record PlaybackQueueItem(
     string? Artist,
     SongCapabilities Capabilities,
     int Position,
-    string UserId);
+    string UserId,
+    string? ProviderId = null);

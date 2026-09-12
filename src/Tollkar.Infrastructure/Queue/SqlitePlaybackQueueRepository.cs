@@ -21,7 +21,7 @@ internal sealed class SqlitePlaybackQueueRepository(string databasePath) : IPlay
         var items = new List<PlaybackQueueItem>();
         await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT q.Id,q.SongId,s.Title,s.Artist,s.Capabilities,q.Position,q.UserId FROM PlaybackQueue q JOIN Songs s ON s.Id=q.SongId WHERE q.UserId=$user ORDER BY q.Position;";
+        command.CommandText = "SELECT q.Id,q.SongId,s.Title,s.Artist,s.Capabilities,q.Position,q.UserId,f.ProviderId FROM PlaybackQueue q JOIN Songs s ON s.Id=q.SongId JOIN Files f ON f.SongId=s.Id WHERE q.UserId=$user ORDER BY q.Position;";
         command.Parameters.AddWithValue("$user", userId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -32,7 +32,7 @@ internal sealed class SqlitePlaybackQueueRepository(string databasePath) : IPlay
                 reader.GetString(2),
                 reader.IsDBNull(3) ? null : reader.GetString(3),
                 (SongCapabilities)reader.GetInt32(4),
-                reader.GetInt32(5), reader.GetString(6)));
+                reader.GetInt32(5), reader.GetString(6), reader.GetString(7)));
         }
 
         return items;
