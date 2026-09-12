@@ -39,7 +39,8 @@ export function Lyrics({ lines, media }: LyricsProps) {
     return () => cancelAnimationFrame(frame)
   }, [lines, media])
 
-  if (lines.length === 0) return null
+  // CDG imports carry their lyrics in the backdrop; its absolute positioning still needs a stage.
+  if (lines.length === 0) return <div className="player-lyrics" aria-hidden="true" />
 
   return <div className="player-lyrics" aria-live="off">
     <p className="player-lyric player-lyric-current" ref={line}>

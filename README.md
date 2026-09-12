@@ -111,6 +111,8 @@ the root get no label, and deeper nesting still shows only that first folder.
 Supported files are `.mp4` and `.kfn`. Use `Artist - Title.mp4` for video metadata. A KFN container
 carries its own title and artist, falling back to the file name and the containing folder, so filing
 them as `Artist/Title.kfn` is enough; see [the KFN notes](docs/kfn-format.md).
+Existing MP3/CDG collections can be converted recursively with the
+[CDG-to-KFN script](docs/cdg-to-kfn.md).
 To avoid indexing a partially copied file, copy it with a temporary extension and rename it to the
 final one when the transfer completes. No server restart is needed for new songs. The web player
 supports both MP4 and KFN containers.

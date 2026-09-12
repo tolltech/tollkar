@@ -14,6 +14,7 @@ sh -n "$repo_dir/publish-files.sh"
 sh -n "$repo_dir/publish-files-server.sh"
 sh -n "$repo_dir/tests/publish-scripts.sh"
 sh "$repo_dir/tests/publish-scripts.sh"
+python3 -B -m unittest discover -s "$repo_dir/tests" -p 'test_*.py'
 
 if [ ! -d "$client_dir/node_modules" ]; then
     (cd "$client_dir" && npm ci)
